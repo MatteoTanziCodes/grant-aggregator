@@ -51,12 +51,48 @@ npm run deploy
 # or similar package manager command
 ```
 
+## Local D1
+
+Initialize the local D1 database schema used by `next dev`:
+
+```bash
+npm run db:local:init
+```
+
+Inspect the local D1 tables:
+
+```bash
+npm run db:local:tables
+```
+
+Reset the local D1 state and recreate the schema:
+
+```bash
+npm run db:local:reset
+```
+
 For Cloudflare Workers Builds / CI, use:
 
 - Build command: `npm run build:cloudflare`
 - Deploy command: `npm run deploy`
 
 Do not use `next build` followed by `wrangler deploy` directly. The deployed worker entrypoint is generated into `.open-next/worker.js` by the OpenNext Cloudflare build step.
+
+## Runtime Config
+
+The production runtime expects these bindings or secrets:
+
+- `FUNDING_DB`
+- `EMAIL_FROM`
+- `EMAIL_VERIFICATION_BASE_URL`
+- `RESEND_API_KEY`
+- `UNSUBSCRIBE_SECRET`
+- `ADMIN_BASIC_AUTH_USERNAME`
+- `ADMIN_BASIC_AUTH_PASSWORD`
+- `ADMIN_TOTP_SECRET`
+- `ADMIN_SESSION_SECRET`
+
+The admin panel at `/admin/login` requires username/password plus a 6-digit authenticator code derived from `ADMIN_TOTP_SECRET`.
 
 ## Learn More
 

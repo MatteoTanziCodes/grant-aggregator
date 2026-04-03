@@ -16,9 +16,8 @@ export async function POST(request: Request) {
 			email: payload.email ?? "",
 			baseUrl: origin,
 			shouldExposeVerificationUrl: process.env.NODE_ENV !== "production",
-			sendVerificationEmail: async ({ email, verificationUrl, unsubscribeUrl }) => {
-				await sendVerificationEmail({ email, verificationUrl, unsubscribeUrl });
-			},
+			sendVerificationEmail: ({ email, verificationUrl, unsubscribeUrl }) =>
+				sendVerificationEmail({ email, verificationUrl, unsubscribeUrl }),
 		});
 
 		return NextResponse.json(delivery);

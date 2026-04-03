@@ -7,7 +7,7 @@ type VerificationEmailArgs = {
 };
 
 type DeliveryResult = {
-	previewUrl?: string;
+	providerMessageId?: string;
 };
 
 function verificationText(args: VerificationEmailArgs): string {
@@ -48,20 +48,22 @@ function verificationHtml(args: VerificationEmailArgs): string {
 
 export async function sendVerificationEmail(args: VerificationEmailArgs): Promise<DeliveryResult> {
 	const env = await getCloudflareEnv();
+	const resendApiKey = env.RESEND_API_KEY ?? process.env.RESEND_API_KEY;
+	const emailFrom = env.EMAIL_FROM ?? process.env.EMAIL_FROM;
 
-	if (!env.RESEND_API_KEY || !env.EMAIL_FROM) {
+	if (!resendApiKey || !emailFrom) {
 		console.log("Verification email delivery not configured. Use this link in development:", args.verificationUrl);
-		return { previewUrl: args.verificationUrl };
+		return { providerMessageId: "development-preview" };
 	}
 
 	const response = await fetch("https://api.resend.com/emails", {
 		method: "POST",
 		headers: {
-			Authorization: `Bearer ${env.RESEND_API_KEY}`,
+			Authorization: `Bearer ${resendApiKey}`,
 			"Content-Type": "application/json",
 		},
 		body: JSON.stringify({
-			from: env.EMAIL_FROM,
+			from: emailFrom,
 			to: [args.email],
 			subject: "Verify your Grant Aggregator email",
 			text: verificationText(args),
@@ -74,5 +76,9 @@ export async function sendVerificationEmail(args: VerificationEmailArgs): Promis
 		throw new Error(`Verification email failed: ${response.status} ${body}`);
 	}
 
-	return {};
+	const payload = (await response.json()) as { id?: string };
+
+	return {
+		providerMessageId: payload.id,
+	};
 }

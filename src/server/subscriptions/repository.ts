@@ -18,6 +18,18 @@ type VerificationLookupRow = {
 	subscriber_status: SubscriberRow["status"];
 };
 
+type SubscriberWithVerificationRow = SubscriberRow & {
+	verification_sent_at: string | null;
+};
+
+type DeliveryInsertArgs = {
+	subscriberId: string;
+	status: "sent" | "failed";
+	providerMessageId?: string;
+	errorMessage?: string;
+	sentAt?: string;
+};
+
 export type SubscriptionRequestResult =
 	| { status: "verification_sent"; email: string; verificationUrl?: string }
 	| { status: "already_verified"; email: string };
@@ -51,6 +63,146 @@ function expiresAtIso(): string {
 	return new Date(Date.now() + VERIFICATION_TTL_HOURS * 60 * 60 * 1000).toISOString();
 }
 
+async function insertVerificationDelivery(args: DeliveryInsertArgs): Promise<void> {
+	const db = await getFundingDb();
+	const createdAt = nowIso();
+
+	await db
+		.prepare(
+			`
+				INSERT INTO notification_deliveries (
+					id,
+					subscriber_id,
+					opportunity_id,
+					delivery_kind,
+					delivery_status,
+					provider_message_id,
+					error_message,
+					sent_at,
+					created_at
+				)
+				VALUES (?, ?, NULL, 'verification', ?, ?, ?, ?, ?)
+			`
+		)
+		.bind(
+			crypto.randomUUID(),
+			args.subscriberId,
+			args.status,
+			args.providerMessageId ?? null,
+			args.errorMessage ?? null,
+			args.sentAt ?? null,
+			createdAt
+		)
+		.run();
+}
+
+async function getSubscriberById(subscriberId: string): Promise<SubscriberWithVerificationRow | null> {
+	const db = await getFundingDb();
+	return db
+		.prepare("SELECT id, email, status, verification_sent_at FROM subscribers WHERE id = ?")
+		.bind(subscriberId)
+		.first<SubscriberWithVerificationRow>();
+}
+
+async function issueVerificationForSubscriber(input: {
+	subscriberId: string;
+	email: string;
+	baseUrl: string;
+	sendVerificationEmail: (args: {
+		email: string;
+		verificationUrl: string;
+		unsubscribeUrl: string;
+	}) => Promise<{ providerMessageId?: string }>;
+	updateStatusToPending?: boolean;
+}): Promise<{ verificationUrl: string }> {
+	const db = await getFundingDb();
+	const timestamp = nowIso();
+
+	if (input.updateStatusToPending) {
+		await db
+			.prepare(
+				`
+					UPDATE subscribers
+					SET
+						status = 'pending_verification',
+						grant_updates_enabled = 1,
+						verification_sent_at = ?,
+						unsubscribed_at = NULL,
+						updated_at = ?
+					WHERE id = ?
+				`
+			)
+			.bind(timestamp, timestamp, input.subscriberId)
+			.run();
+	} else {
+		await db
+			.prepare(
+				`
+					UPDATE subscribers
+					SET
+						verification_sent_at = ?,
+						updated_at = ?
+					WHERE id = ?
+				`
+			)
+			.bind(timestamp, timestamp, input.subscriberId)
+			.run();
+	}
+
+	const rawToken = createVerificationToken();
+	const tokenHash = await hashVerificationToken(rawToken);
+	const verificationUrl = new URL("/api/verify", input.baseUrl);
+	verificationUrl.searchParams.set("token", rawToken);
+	const unsubscribeToken = await createUnsubscribeToken({
+		subscriberId: input.subscriberId,
+		email: input.email,
+	});
+	const unsubscribeUrl = new URL("/api/unsubscribe", input.baseUrl);
+	unsubscribeUrl.searchParams.set("token", unsubscribeToken);
+
+	await db
+		.prepare(
+			`
+				INSERT INTO email_verification_tokens (
+					id,
+					subscriber_id,
+					token_hash,
+					expires_at,
+					created_at
+				)
+				VALUES (?, ?, ?, ?, ?)
+			`
+		)
+		.bind(crypto.randomUUID(), input.subscriberId, tokenHash, expiresAtIso(), timestamp)
+		.run();
+
+	try {
+		const delivery = await input.sendVerificationEmail({
+			email: input.email,
+			verificationUrl: verificationUrl.toString(),
+			unsubscribeUrl: unsubscribeUrl.toString(),
+		});
+
+		await insertVerificationDelivery({
+			subscriberId: input.subscriberId,
+			status: "sent",
+			providerMessageId: delivery.providerMessageId,
+			sentAt: timestamp,
+		});
+	} catch (error) {
+		await insertVerificationDelivery({
+			subscriberId: input.subscriberId,
+			status: "failed",
+			errorMessage: error instanceof Error ? error.message : "Verification email failed.",
+		});
+		throw error;
+	}
+
+	return {
+		verificationUrl: verificationUrl.toString(),
+	};
+}
+
 export async function createOrRefreshSubscriber(input: {
 	email: string;
 	sourceLabel?: string;
@@ -60,7 +212,7 @@ export async function createOrRefreshSubscriber(input: {
 		email: string;
 		verificationUrl: string;
 		unsubscribeUrl: string;
-	}) => Promise<void>;
+	}) => Promise<{ providerMessageId?: string }>;
 }): Promise<SubscriptionRequestResult> {
 	const email = normalizeEmailAddress(input.email);
 
@@ -108,43 +260,18 @@ export async function createOrRefreshSubscriber(input: {
 		.bind(subscriberId, email, input.sourceLabel ?? "site-signup", timestamp, timestamp, timestamp)
 		.run();
 
-	const rawToken = createVerificationToken();
-	const tokenHash = await hashVerificationToken(rawToken);
-	const verificationUrl = new URL("/api/verify", input.baseUrl);
-	verificationUrl.searchParams.set("token", rawToken);
-	const unsubscribeToken = await createUnsubscribeToken({
+	const delivery = await issueVerificationForSubscriber({
 		subscriberId,
 		email,
-	});
-	const unsubscribeUrl = new URL("/api/unsubscribe", input.baseUrl);
-	unsubscribeUrl.searchParams.set("token", unsubscribeToken);
-
-	await db
-		.prepare(
-			`
-				INSERT INTO email_verification_tokens (
-					id,
-					subscriber_id,
-					token_hash,
-					expires_at,
-					created_at
-				)
-				VALUES (?, ?, ?, ?, ?)
-			`
-		)
-		.bind(crypto.randomUUID(), subscriberId, tokenHash, expiresAtIso(), timestamp)
-		.run();
-
-	await input.sendVerificationEmail({
-		email,
-		verificationUrl: verificationUrl.toString(),
-		unsubscribeUrl: unsubscribeUrl.toString(),
+		baseUrl: input.baseUrl,
+		updateStatusToPending: false,
+		sendVerificationEmail: input.sendVerificationEmail,
 	});
 
 	return {
 		status: "verification_sent",
 		email,
-		verificationUrl: input.shouldExposeVerificationUrl ? verificationUrl.toString() : undefined,
+		verificationUrl: input.shouldExposeVerificationUrl ? delivery.verificationUrl : undefined,
 	};
 }
 
@@ -261,4 +388,69 @@ export async function unsubscribeFromToken(token: string | null): Promise<Unsubs
 		.run();
 
 	return "unsubscribed";
+}
+
+export async function resendVerificationForSubscriber(input: {
+	subscriberId: string;
+	baseUrl: string;
+	sendVerificationEmail: (args: {
+		email: string;
+		verificationUrl: string;
+		unsubscribeUrl: string;
+	}) => Promise<{ providerMessageId?: string }>;
+}): Promise<void> {
+	const subscriber = await getSubscriberById(input.subscriberId);
+
+	if (!subscriber) {
+		throw new Error("NOT_FOUND");
+	}
+
+	if (subscriber.status !== "pending_verification") {
+		throw new Error("Only pending subscribers can receive another verification email.");
+	}
+
+	await issueVerificationForSubscriber({
+		subscriberId: subscriber.id,
+		email: subscriber.email,
+		baseUrl: input.baseUrl,
+		sendVerificationEmail: input.sendVerificationEmail,
+		updateStatusToPending: false,
+	});
+}
+
+export async function unsubscribeSubscriberById(subscriberId: string): Promise<void> {
+	const subscriber = await getSubscriberById(subscriberId);
+
+	if (!subscriber) {
+		throw new Error("NOT_FOUND");
+	}
+
+	const db = await getFundingDb();
+	const timestamp = nowIso();
+
+	await db
+		.prepare(
+			`
+				UPDATE subscribers
+				SET
+					status = 'unsubscribed',
+					grant_updates_enabled = 0,
+					unsubscribed_at = ?,
+					updated_at = ?
+				WHERE id = ?
+			`
+		)
+		.bind(timestamp, timestamp, subscriberId)
+		.run();
+}
+
+export async function deleteSubscriberById(subscriberId: string): Promise<void> {
+	const subscriber = await getSubscriberById(subscriberId);
+
+	if (!subscriber) {
+		throw new Error("NOT_FOUND");
+	}
+
+	const db = await getFundingDb();
+	await db.prepare("DELETE FROM subscribers WHERE id = ?").bind(subscriberId).run();
 }
