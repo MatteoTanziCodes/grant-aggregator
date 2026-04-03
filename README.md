@@ -1,10 +1,10 @@
-# OpenNext Starter
+# Grant Aggregator
 
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+This repo runs a Next.js app on Cloudflare Workers via OpenNext.
 
 ## Getting Started
 
-Read the documentation at https://opennext.js.org/cloudflare.
+Read the OpenNext Cloudflare docs at https://opennext.js.org/cloudflare.
 
 ## Develop
 
@@ -17,7 +17,21 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+You can start editing the page by modifying `src/app/page.tsx`. The page auto-updates as you edit the file.
+
+## Build
+
+Generate a plain Next.js production build:
+
+```bash
+npm run build
+```
+
+Generate the Cloudflare worker bundle that Wrangler deploys:
+
+```bash
+npm run build:cloudflare
+```
 
 ## Preview
 
@@ -36,6 +50,13 @@ Deploy the application to Cloudflare:
 npm run deploy
 # or similar package manager command
 ```
+
+For Cloudflare Workers Builds / CI, use:
+
+- Build command: `npm run build:cloudflare`
+- Deploy command: `npm run deploy`
+
+Do not use `next build` followed by `wrangler deploy` directly. The deployed worker entrypoint is generated into `.open-next/worker.js` by the OpenNext Cloudflare build step.
 
 ## Learn More
 
