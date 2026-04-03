@@ -1,13 +1,16 @@
 import { AdminDebugConsole } from "@/components/admin-debug-console";
 import { requireAdminPageSession } from "@/server/admin/auth";
-import { listAdminSubscribers } from "@/server/admin/repository";
+import { getAdminOverview, listAdminSubscribers } from "@/server/admin/repository";
 import Balancer from "react-wrap-balancer";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminDebugPage() {
 	const session = await requireAdminPageSession();
-	const { items, total } = await listAdminSubscribers({ status: "all", limit: 100, offset: 0 });
+	const [{ items, total }, overview] = await Promise.all([
+		listAdminSubscribers({ status: "all", limit: 100, offset: 0 }),
+		getAdminOverview({ staleHours: 72 }),
+	]);
 
 	return (
 		<main className="relative min-h-screen overflow-hidden bg-[var(--background)] px-6 py-8 text-[var(--foreground)] sm:px-10">
@@ -27,7 +30,12 @@ export default async function AdminDebugPage() {
 					</div>
 				</header>
 
-				<AdminDebugConsole initialItems={items} initialTotal={total} username={session.username} />
+				<AdminDebugConsole
+					initialItems={items}
+					initialTotal={total}
+					initialOverview={overview}
+					username={session.username}
+				/>
 			</div>
 		</main>
 	);

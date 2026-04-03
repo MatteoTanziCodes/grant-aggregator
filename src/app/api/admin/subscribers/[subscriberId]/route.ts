@@ -26,9 +26,12 @@ export async function GET(_request: Request, context: RouteContext) {
 
 export async function DELETE(_request: Request, context: RouteContext) {
 	try {
-		await requireAdminApiSession();
+		const session = await requireAdminApiSession();
 		const { subscriberId } = await context.params;
-		await deleteSubscriberById(subscriberId);
+		await deleteSubscriberById({
+			subscriberId,
+			adminUsername: session.username,
+		});
 		return NextResponse.json({ ok: true });
 	} catch (error) {
 		return adminErrorResponse(error);
