@@ -58,6 +58,22 @@ For Cloudflare Workers Builds / CI, use:
 
 Do not use `next build` followed by `wrangler deploy` directly. The deployed worker entrypoint is generated into `.open-next/worker.js` by the OpenNext Cloudflare build step.
 
+## Runtime Config
+
+The production runtime expects these bindings or secrets:
+
+- `FUNDING_DB`
+- `EMAIL_FROM`
+- `EMAIL_VERIFICATION_BASE_URL`
+- `RESEND_API_KEY`
+- `UNSUBSCRIBE_SECRET`
+- `ADMIN_BASIC_AUTH_USERNAME`
+- `ADMIN_BASIC_AUTH_PASSWORD`
+- `ADMIN_TOTP_SECRET`
+- `ADMIN_SESSION_SECRET`
+
+The admin panel at `/admin/login` requires username/password plus a 6-digit authenticator code derived from `ADMIN_TOTP_SECRET`.
+
 ## Learn More
 
 To learn more about Next.js, take a look at the following resources:
