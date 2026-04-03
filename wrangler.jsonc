@@ -9,6 +9,20 @@
 	"main": ".open-next/worker.js",
 	"compatibility_date": "2025-12-01",
 	"compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+	// Required for the email-only signup flow and funding schema:
+	// "d1_databases": [
+	// 	{
+	// 		"binding": "FUNDING_DB",
+	// 		"database_name": "grant-aggregator",
+	// 		"database_id": "replace-with-your-d1-database-id"
+	// 	}
+	// ],
+	// Optional if you want verification emails delivered through Resend:
+	// "vars": {
+	// 	"EMAIL_FROM": "updates@yourdomain.com",
+	// 	"EMAIL_VERIFICATION_BASE_URL": "https://your-domain.com",
+	// 	"UNSUBSCRIBE_SECRET": "replace-with-a-long-random-secret"
+	// },
 	"assets": {
 		"binding": "ASSETS",
 		"directory": ".open-next/assets"
