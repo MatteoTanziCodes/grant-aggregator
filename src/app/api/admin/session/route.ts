@@ -1,10 +1,10 @@
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import {
+	checkAdminCredentials,
 	createAdminSessionValue,
 	getAdminSessionCookieName,
 	getAdminSessionDurationSeconds,
-	validateAdminCredentials,
 } from "@/server/admin/auth";
 import { adminErrorResponse } from "@/server/admin/http";
 
@@ -28,8 +28,9 @@ export async function POST(request: Request) {
 			);
 		}
 
-		const isValid = await validateAdminCredentials({ username, password, totpCode });
-		if (!isValid) {
+		const credentialCheck = await checkAdminCredentials({ username, password, totpCode });
+		if (!credentialCheck.usernameMatches || !credentialCheck.passwordMatches || !credentialCheck.totpMatches) {
+			console.warn("Admin login rejected.", credentialCheck);
 			return NextResponse.json({ error: "Invalid admin credentials." }, { status: 401 });
 		}
 

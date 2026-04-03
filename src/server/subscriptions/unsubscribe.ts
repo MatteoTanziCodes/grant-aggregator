@@ -46,13 +46,14 @@ async function signValue(value: string, secret: string): Promise<string> {
 
 export async function createUnsubscribeToken(payload: UnsubscribePayload): Promise<string> {
 	const env = await getCloudflareEnv();
+	const unsubscribeSecret = env.UNSUBSCRIBE_SECRET ?? process.env.UNSUBSCRIBE_SECRET;
 
-	if (!env.UNSUBSCRIBE_SECRET) {
+	if (!unsubscribeSecret) {
 		throw new Error("Missing UNSUBSCRIBE_SECRET for unsubscribe links.");
 	}
 
 	const encodedPayload = toBase64Url(JSON.stringify(payload));
-	const signature = await signValue(encodedPayload, env.UNSUBSCRIBE_SECRET);
+	const signature = await signValue(encodedPayload, unsubscribeSecret);
 	return `${encodedPayload}.${signature}`;
 }
 
@@ -62,8 +63,9 @@ export async function verifyUnsubscribeToken(token: string | null): Promise<Unsu
 	}
 
 	const env = await getCloudflareEnv();
+	const unsubscribeSecret = env.UNSUBSCRIBE_SECRET ?? process.env.UNSUBSCRIBE_SECRET;
 
-	if (!env.UNSUBSCRIBE_SECRET) {
+	if (!unsubscribeSecret) {
 		throw new Error("Missing UNSUBSCRIBE_SECRET for unsubscribe links.");
 	}
 
@@ -73,7 +75,7 @@ export async function verifyUnsubscribeToken(token: string | null): Promise<Unsu
 		return null;
 	}
 
-	const expectedSignature = await signValue(encodedPayload, env.UNSUBSCRIBE_SECRET);
+	const expectedSignature = await signValue(encodedPayload, unsubscribeSecret);
 
 	if (expectedSignature !== providedSignature) {
 		return null;

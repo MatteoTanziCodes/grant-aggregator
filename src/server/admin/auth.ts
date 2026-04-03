@@ -84,22 +84,34 @@ export function getAdminSessionDurationSeconds(): number {
 	return SESSION_DURATION_SECONDS;
 }
 
+export async function checkAdminCredentials(input: {
+	username: string;
+	password: string;
+	totpCode: string;
+}): Promise<{
+	usernameMatches: boolean;
+	passwordMatches: boolean;
+	totpMatches: boolean;
+}> {
+	const config = await getAdminRuntimeConfig();
+	const usernameMatches = constantTimeEqual(input.username, config.username);
+	const passwordMatches = constantTimeEqual(input.password, config.password);
+	const totpMatches = usernameMatches && passwordMatches ? await verifyTotpCode(config.totpSecret, input.totpCode) : false;
+
+	return {
+		usernameMatches,
+		passwordMatches,
+		totpMatches,
+	};
+}
+
 export async function validateAdminCredentials(input: {
 	username: string;
 	password: string;
 	totpCode: string;
 }): Promise<boolean> {
-	const config = await getAdminRuntimeConfig();
-
-	if (!constantTimeEqual(input.username, config.username)) {
-		return false;
-	}
-
-	if (!constantTimeEqual(input.password, config.password)) {
-		return false;
-	}
-
-	return verifyTotpCode(config.totpSecret, input.totpCode);
+	const result = await checkAdminCredentials(input);
+	return result.usernameMatches && result.passwordMatches && result.totpMatches;
 }
 
 export async function createAdminSessionValue(username: string): Promise<string> {

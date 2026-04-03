@@ -51,6 +51,26 @@ npm run deploy
 # or similar package manager command
 ```
 
+## Local D1
+
+Initialize the local D1 database schema used by `next dev`:
+
+```bash
+npm run db:local:init
+```
+
+Inspect the local D1 tables:
+
+```bash
+npm run db:local:tables
+```
+
+Reset the local D1 state and recreate the schema:
+
+```bash
+npm run db:local:reset
+```
+
 For Cloudflare Workers Builds / CI, use:
 
 - Build command: `npm run build:cloudflare`
