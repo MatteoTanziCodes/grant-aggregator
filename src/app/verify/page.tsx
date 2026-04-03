@@ -38,18 +38,18 @@ export default async function VerifyPage({
 	const content = copy[status];
 
 	return (
-		<main className="min-h-screen bg-[radial-gradient(circle_at_top,#d1fae5_0,#f8fafc_45%,#f5f5f4_100%)] px-6 py-10 text-stone-900">
-			<div className="mx-auto flex min-h-[80vh] max-w-3xl items-center justify-center">
-				<section className="w-full rounded-[2rem] border border-white/80 bg-white/80 p-8 shadow-[0_30px_120px_rgba(15,23,42,0.12)] backdrop-blur md:p-12">
-					<p className="text-xs font-semibold uppercase tracking-[0.35em] text-teal-700">{content.eyebrow}</p>
-					<h1 className="mt-4 max-w-2xl text-4xl font-semibold tracking-[-0.04em] text-balance sm:text-5xl">
+		<main className="min-h-screen bg-[var(--background)] px-6 py-10 text-[var(--foreground)] sm:px-10">
+			<div className="mx-auto flex min-h-[80vh] max-w-4xl items-center justify-center">
+				<section className="w-full rounded-[var(--radius-panel)] border border-[var(--border)] bg-[var(--surface-strong)] p-8 shadow-[0_18px_50px_rgba(75,30,37,0.06)] md:p-12">
+					<p className="font-founders text-[11px] uppercase tracking-[0.32em] text-[var(--accent)]">{content.eyebrow}</p>
+					<h1 className="font-founders mt-4 max-w-3xl text-[2.6rem] uppercase tracking-[-0.08em] text-balance sm:text-[3.4rem]">
 						{content.title}
 					</h1>
-					<p className="mt-6 max-w-xl text-base leading-7 text-stone-700">{content.body}</p>
+					<p className="mt-6 max-w-2xl text-base leading-8 text-[var(--muted)]">{content.body}</p>
 					<div className="mt-10 flex flex-wrap gap-4">
 						<Link
 							href="/"
-							className="rounded-full bg-stone-950 px-6 py-3 text-sm font-semibold text-white transition hover:bg-stone-800"
+							className="font-founders rounded-[var(--radius-box)] bg-[var(--accent)] px-6 py-3 text-[11px] uppercase tracking-[0.18em] text-white transition hover:bg-[var(--accent-deep)]"
 						>
 							Back to signup
 						</Link>
