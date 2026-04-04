@@ -1,4 +1,8 @@
-import { getCrawlArtifactsBucket, getFundingDb } from "@/server/cloudflare/context";
+import {
+	getCrawlArtifactsBucket,
+	getFundingDb,
+	maybeGetCrawlArtifactsBucket,
+} from "@/server/cloudflare/context";
 import { logCrawlEvent } from "@/server/ingestion/crawl-logging";
 import { normalizeSourceUrl } from "@/server/ingestion/source-validation";
 
@@ -50,6 +54,31 @@ export type StoreCrawlArtifactInput = {
 	markAsPrimaryForRun?: boolean;
 };
 
+export type PersistFetchedArtifactInput = {
+	crawlRunId: string;
+	sourceId: string;
+	body: Uint8Array;
+	httpStatus: number;
+	contentType: string | null;
+	finalUrl: string;
+	responseMetadata: Record<string, unknown>;
+	fetchedAt: string;
+};
+
+export type PersistFetchedArtifactResult =
+	| {
+			status: "stored";
+			artifact: CrawlArtifactRecord;
+	  }
+	| {
+			status: "skipped";
+			reason: "binding_unavailable" | "unsupported_content_type";
+	  };
+
+export type CrawlArtifactPersister = {
+	persistFetchedArtifact(input: PersistFetchedArtifactInput): Promise<PersistFetchedArtifactResult>;
+};
+
 function nowIso(): string {
 	return new Date().toISOString();
 }
@@ -78,6 +107,32 @@ function artifactExtension(artifactType: CrawlArtifactType): string {
 		case "text":
 			return "txt";
 	}
+}
+
+function inferArtifactTypeFromContentType(contentType: string | null): CrawlArtifactType | null {
+	if (!contentType) {
+		return "text";
+	}
+
+	const normalized = contentType.toLowerCase();
+	if (normalized.includes("text/html") || normalized.includes("application/xhtml+xml")) {
+		return "html";
+	}
+	if (
+		normalized.includes("application/json") ||
+		normalized.includes("+json") ||
+		normalized.includes("application/feed+json")
+	) {
+		return "json";
+	}
+	if (normalized.includes("text/markdown") || normalized.includes("text/x-markdown")) {
+		return "markdown";
+	}
+	if (normalized.startsWith("text/")) {
+		return "text";
+	}
+
+	return null;
 }
 
 function toBytes(body: StoreCrawlArtifactInput["body"]): Uint8Array {
@@ -335,4 +390,46 @@ export async function getCrawlArtifactBody(storageKey: string): Promise<ArrayBuf
 	}
 
 	return object.arrayBuffer();
+}
+
+export function createDefaultCrawlArtifactPersister(): CrawlArtifactPersister {
+	return {
+		async persistFetchedArtifact(
+			input: PersistFetchedArtifactInput
+		): Promise<PersistFetchedArtifactResult> {
+			const bucket = await maybeGetCrawlArtifactsBucket();
+			if (!bucket) {
+				return {
+					status: "skipped",
+					reason: "binding_unavailable",
+				};
+			}
+
+			const artifactType = inferArtifactTypeFromContentType(input.contentType);
+			if (!artifactType) {
+				return {
+					status: "skipped",
+					reason: "unsupported_content_type",
+				};
+			}
+
+			const artifact = await storeCrawlArtifact({
+				crawlRunId: input.crawlRunId,
+				sourceId: input.sourceId,
+				artifactType,
+				body: input.body,
+				httpStatus: input.httpStatus,
+				contentType: input.contentType,
+				finalUrl: input.finalUrl,
+				responseMetadata: input.responseMetadata,
+				fetchedAt: input.fetchedAt,
+				markAsPrimaryForRun: true,
+			});
+
+			return {
+				status: "stored",
+				artifact,
+			};
+		},
+	};
 }

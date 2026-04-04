@@ -42,7 +42,7 @@ export async function assertSourceCrawlAllowed(
 	limits: CrawlRunLimits = DEFAULT_CRAWL_LIMITS
 ): Promise<void> {
 	const db = await getFundingDb();
-	const [runningResult, lastRunResult] = await db.batch([
+	const [runningResult, sourceActiveResult, lastRunResult] = await db.batch([
 		db
 			.prepare(
 				`
@@ -51,6 +51,16 @@ export async function assertSourceCrawlAllowed(
 					WHERE status IN ('queued', 'running')
 				`
 			),
+		db
+			.prepare(
+				`
+					SELECT COUNT(*) AS total
+					FROM crawl_runs
+					WHERE source_id = ?
+						AND status IN ('queued', 'running')
+				`
+			)
+			.bind(sourceId),
 		db
 			.prepare(
 				`
@@ -67,6 +77,12 @@ export async function assertSourceCrawlAllowed(
 	const runningTotal = (runningResult.results[0] as { total?: number } | undefined)?.total ?? 0;
 	if (runningTotal >= limits.maxConcurrentRuns) {
 		throw new CrawlPolicyError("Global crawl concurrency limit reached.");
+	}
+
+	const sourceActiveTotal =
+		(sourceActiveResult.results[0] as { total?: number } | undefined)?.total ?? 0;
+	if (sourceActiveTotal > 0) {
+		throw new CrawlPolicyError("Source already has an active crawl run.");
 	}
 
 	const lastStartedAt = (lastRunResult.results[0] as { started_at?: string } | undefined)?.started_at;

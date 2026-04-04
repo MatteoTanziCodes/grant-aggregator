@@ -15,12 +15,16 @@ export async function getFundingDb(): Promise<D1Database> {
 	return env.FUNDING_DB;
 }
 
-export async function getCrawlArtifactsBucket(): Promise<R2Bucket> {
+export async function maybeGetCrawlArtifactsBucket(): Promise<R2Bucket | null> {
 	const env = await getCloudflareEnv();
+	return env.CRAWL_ARTIFACTS ?? null;
+}
 
-	if (!env.CRAWL_ARTIFACTS) {
+export async function getCrawlArtifactsBucket(): Promise<R2Bucket> {
+	const bucket = await maybeGetCrawlArtifactsBucket();
+	if (!bucket) {
 		throw new Error("Missing Cloudflare R2 binding: CRAWL_ARTIFACTS");
 	}
 
-	return env.CRAWL_ARTIFACTS;
+	return bucket;
 }

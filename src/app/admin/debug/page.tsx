@@ -73,16 +73,22 @@ export default async function AdminDebugPage() {
 			<div className="pointer-events-none absolute inset-0">
 				<div className="absolute inset-x-0 top-0 h-px bg-[var(--border)]" />
 			</div>
-			<div className="mx-auto max-w-7xl">
-				<header className="relative mb-8 flex flex-wrap items-end justify-between gap-4 border-b border-[var(--border)] pb-6">
-					<div>
-						<p className="font-founders text-[11px] uppercase tracking-[0.32em] text-[var(--accent)]">Operational admin</p>
-						<h1 className="font-founders mt-3 max-w-4xl text-[2.6rem] uppercase tracking-[-0.08em] text-balance">Subscriber and delivery debug</h1>
-						<p className="mt-3 max-w-3xl text-sm leading-7 text-[var(--muted)]">
-							Inspect subscriber state, resend verification mail, force unsubscribe, and permanently delete records while the funding backend stays in stealth.
-						</p>
-					</div>
-				</header>
+				<div className="mx-auto max-w-7xl">
+					<header className="relative mb-8 flex flex-wrap items-end justify-between gap-4 border-b border-[var(--border)] pb-6">
+						<div>
+							<p className="font-founders text-[11px] uppercase tracking-[0.32em] text-[var(--accent)]">Operational admin</p>
+							<h1 className="font-founders mt-3 max-w-4xl text-[2.6rem] uppercase tracking-[-0.08em] text-balance">Subscriber and delivery debug</h1>
+							<p className="mt-3 max-w-3xl text-sm leading-7 text-[var(--muted)]">
+								Inspect subscriber state, resend verification mail, force unsubscribe, and permanently delete records while the funding backend stays in stealth.
+							</p>
+						</div>
+						<a
+							href="/admin/ingestion"
+							className="font-founders rounded-[var(--radius-box)] border border-[var(--border)] bg-[var(--surface-card)] px-4 py-2 text-[11px] uppercase tracking-[0.16em] text-[var(--accent)]"
+						>
+							GrantCompass ingestion
+						</a>
+					</header>
 
 				<AdminDebugConsole
 					initialItems={data.items}
