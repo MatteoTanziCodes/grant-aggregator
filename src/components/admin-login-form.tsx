@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { cn } from "@/lib/cn";
 
 export function AdminLoginForm() {
 	const router = useRouter();
@@ -46,7 +47,7 @@ export function AdminLoginForm() {
 	return (
 		<form className="space-y-5" onSubmit={handleSubmit}>
 			<div className="space-y-2">
-				<label className="text-sm font-medium text-stone-700" htmlFor="admin-username">
+				<label className="font-founders text-[11px] uppercase tracking-[0.24em] text-[var(--accent)]" htmlFor="admin-username">
 					Username
 				</label>
 				<input
@@ -56,12 +57,12 @@ export function AdminLoginForm() {
 					onChange={(event) => setUsername(event.target.value)}
 					autoComplete="username"
 					required
-					className="w-full rounded-2xl border border-stone-300 bg-white px-4 py-3 text-stone-900 outline-none focus:border-teal-600"
+					className="w-full rounded-[var(--radius-box)] border border-[var(--border)] bg-[var(--surface-card)] px-4 py-3 text-[var(--foreground)] outline-none focus:border-[var(--accent)]"
 				/>
 			</div>
 
 			<div className="space-y-2">
-				<label className="text-sm font-medium text-stone-700" htmlFor="admin-password">
+				<label className="font-founders text-[11px] uppercase tracking-[0.24em] text-[var(--accent)]" htmlFor="admin-password">
 					Password
 				</label>
 				<input
@@ -71,12 +72,12 @@ export function AdminLoginForm() {
 					onChange={(event) => setPassword(event.target.value)}
 					autoComplete="current-password"
 					required
-					className="w-full rounded-2xl border border-stone-300 bg-white px-4 py-3 text-stone-900 outline-none focus:border-teal-600"
+					className="w-full rounded-[var(--radius-box)] border border-[var(--border)] bg-[var(--surface-card)] px-4 py-3 text-[var(--foreground)] outline-none focus:border-[var(--accent)]"
 				/>
 			</div>
 
 			<div className="space-y-2">
-				<label className="text-sm font-medium text-stone-700" htmlFor="admin-totp">
+				<label className="font-founders text-[11px] uppercase tracking-[0.24em] text-[var(--accent)]" htmlFor="admin-totp">
 					Authenticator code
 				</label>
 				<input
@@ -88,20 +89,27 @@ export function AdminLoginForm() {
 					onChange={(event) => setTotpCode(event.target.value.replace(/\D/g, "").slice(0, 6))}
 					autoComplete="one-time-code"
 					required
-					className="w-full rounded-2xl border border-stone-300 bg-white px-4 py-3 text-stone-900 outline-none focus:border-teal-600"
+					className="w-full rounded-[var(--radius-box)] border border-[var(--border)] bg-[var(--surface-card)] px-4 py-3 text-[var(--foreground)] outline-none focus:border-[var(--accent)]"
 				/>
 			</div>
 
 			<button
 				type="submit"
 				disabled={isSubmitting}
-				className="w-full rounded-full bg-stone-950 px-5 py-3 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:bg-stone-700"
+				className="font-founders w-full rounded-[var(--radius-box)] bg-[var(--accent)] px-5 py-3 text-xs uppercase tracking-[0.18em] text-white disabled:cursor-not-allowed disabled:bg-[color:rgba(139,35,50,0.5)]"
 			>
 				{isSubmitting ? "Signing in..." : "Open admin console"}
 			</button>
 
 			{error ? (
-				<div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">{error}</div>
+				<div
+					className={cn(
+						"rounded-[var(--radius-box)] border px-4 py-3 text-sm",
+						"border-[var(--danger-border)] bg-[var(--danger-surface)] text-[var(--foreground)]"
+					)}
+				>
+					{error}
+				</div>
 			) : null}
 		</form>
 	);

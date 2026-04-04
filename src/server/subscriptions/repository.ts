@@ -1,6 +1,16 @@
+import { logAdminAudit } from "@/server/admin/audit";
 import { getFundingDb } from "@/server/cloudflare/context";
+import { createEmailEvent, type EmailEventActorType } from "@/server/email-events/repository";
 import { createVerificationToken, hashVerificationToken } from "@/server/subscriptions/token";
-import { createUnsubscribeToken, verifyUnsubscribeToken } from "@/server/subscriptions/unsubscribe";
+import {
+	createUnsubscribeToken,
+	verifyUnsubscribeToken,
+} from "@/server/subscriptions/unsubscribe";
+import {
+	sendAdminTestEmail,
+	type DeliveryResult,
+	toDeliveryErrorDetails,
+} from "@/server/subscriptions/email";
 
 const VERIFICATION_TTL_HOURS = 24;
 
@@ -24,11 +34,22 @@ type SubscriberWithVerificationRow = SubscriberRow & {
 
 type DeliveryInsertArgs = {
 	subscriberId: string;
-	status: "sent" | "failed";
+	status: "queued" | "sent" | "failed";
 	providerMessageId?: string;
 	errorMessage?: string;
 	sentAt?: string;
 };
+
+type VerificationActor = {
+	type: EmailEventActorType;
+	username?: string;
+};
+
+type SendVerificationEmailFn = (args: {
+	email: string;
+	verificationUrl: string;
+	unsubscribeUrl: string;
+}) => Promise<DeliveryResult>;
 
 export type SubscriptionRequestResult =
 	| { status: "verification_sent"; email: string; verificationUrl?: string }
@@ -61,6 +82,10 @@ function nowIso(): string {
 
 function expiresAtIso(): string {
 	return new Date(Date.now() + VERIFICATION_TTL_HOURS * 60 * 60 * 1000).toISOString();
+}
+
+function legacyDeliveryStatusFromResult(resultStatus: DeliveryResult["resultStatus"]): "queued" | "sent" {
+	return resultStatus === "skipped" ? "queued" : "sent";
 }
 
 async function insertVerificationDelivery(args: DeliveryInsertArgs): Promise<void> {
@@ -108,13 +133,10 @@ async function issueVerificationForSubscriber(input: {
 	subscriberId: string;
 	email: string;
 	baseUrl: string;
-	sendVerificationEmail: (args: {
-		email: string;
-		verificationUrl: string;
-		unsubscribeUrl: string;
-	}) => Promise<{ providerMessageId?: string }>;
+	sendVerificationEmail: SendVerificationEmailFn;
 	updateStatusToPending?: boolean;
-}): Promise<{ verificationUrl: string }> {
+	actor: VerificationActor;
+}): Promise<{ verificationUrl: string; verificationTokenId: string; emailEventId: string }> {
 	const db = await getFundingDb();
 	const timestamp = nowIso();
 
@@ -151,6 +173,7 @@ async function issueVerificationForSubscriber(input: {
 
 	const rawToken = createVerificationToken();
 	const tokenHash = await hashVerificationToken(rawToken);
+	const verificationTokenId = crypto.randomUUID();
 	const verificationUrl = new URL("/api/verify", input.baseUrl);
 	verificationUrl.searchParams.set("token", rawToken);
 	const unsubscribeToken = await createUnsubscribeToken({
@@ -173,7 +196,7 @@ async function issueVerificationForSubscriber(input: {
 				VALUES (?, ?, ?, ?, ?)
 			`
 		)
-		.bind(crypto.randomUUID(), input.subscriberId, tokenHash, expiresAtIso(), timestamp)
+		.bind(verificationTokenId, input.subscriberId, tokenHash, expiresAtIso(), timestamp)
 		.run();
 
 	try {
@@ -185,22 +208,68 @@ async function issueVerificationForSubscriber(input: {
 
 		await insertVerificationDelivery({
 			subscriberId: input.subscriberId,
-			status: "sent",
+			status: legacyDeliveryStatusFromResult(delivery.resultStatus),
 			providerMessageId: delivery.providerMessageId,
 			sentAt: timestamp,
 		});
+
+		const emailEventId = await createEmailEvent({
+			emailType: "verification",
+			recipientEmail: input.email,
+			subscriberId: input.subscriberId,
+			verificationTokenId,
+			providerName: delivery.providerName,
+			providerMessageId: delivery.providerMessageId,
+			triggeredByType: input.actor.type,
+			triggeredByUser: input.actor.username ?? null,
+			resultStatus: delivery.resultStatus,
+			providerResponseSummary: delivery.providerResponseSummary,
+			attemptedAt: timestamp,
+		});
+
+		return {
+			verificationUrl: verificationUrl.toString(),
+			verificationTokenId,
+			emailEventId,
+		};
 	} catch (error) {
+		const failure = toDeliveryErrorDetails(error);
 		await insertVerificationDelivery({
 			subscriberId: input.subscriberId,
 			status: "failed",
-			errorMessage: error instanceof Error ? error.message : "Verification email failed.",
+			errorMessage: failure.errorMessage,
 		});
+
+		const emailEventId = await createEmailEvent({
+			emailType: "verification",
+			recipientEmail: input.email,
+			subscriberId: input.subscriberId,
+			verificationTokenId,
+			providerName: failure.providerName,
+			triggeredByType: input.actor.type,
+			triggeredByUser: input.actor.username ?? null,
+			resultStatus: "failed",
+			providerResponseSummary: failure.providerResponseSummary,
+			errorCode: failure.errorCode,
+			errorMessage: failure.errorMessage,
+			attemptedAt: timestamp,
+		});
+
+		if (input.actor.type === "admin" && input.actor.username) {
+			await logAdminAudit({
+				adminUsername: input.actor.username,
+				actionType: "verification_resend_failed",
+				targetSubscriberId: input.subscriberId,
+				targetEmailEventId: emailEventId,
+				metadata: {
+					email: input.email,
+					errorCode: failure.errorCode,
+				},
+			});
+		}
+
 		throw error;
 	}
-
-	return {
-		verificationUrl: verificationUrl.toString(),
-	};
 }
 
 export async function createOrRefreshSubscriber(input: {
@@ -208,11 +277,7 @@ export async function createOrRefreshSubscriber(input: {
 	sourceLabel?: string;
 	baseUrl: string;
 	shouldExposeVerificationUrl?: boolean;
-	sendVerificationEmail: (args: {
-		email: string;
-		verificationUrl: string;
-		unsubscribeUrl: string;
-	}) => Promise<{ providerMessageId?: string }>;
+	sendVerificationEmail: SendVerificationEmailFn;
 }): Promise<SubscriptionRequestResult> {
 	const email = normalizeEmailAddress(input.email);
 
@@ -266,6 +331,7 @@ export async function createOrRefreshSubscriber(input: {
 		baseUrl: input.baseUrl,
 		updateStatusToPending: false,
 		sendVerificationEmail: input.sendVerificationEmail,
+		actor: { type: "user" },
 	});
 
 	return {
@@ -393,11 +459,8 @@ export async function unsubscribeFromToken(token: string | null): Promise<Unsubs
 export async function resendVerificationForSubscriber(input: {
 	subscriberId: string;
 	baseUrl: string;
-	sendVerificationEmail: (args: {
-		email: string;
-		verificationUrl: string;
-		unsubscribeUrl: string;
-	}) => Promise<{ providerMessageId?: string }>;
+	sendVerificationEmail: SendVerificationEmailFn;
+	adminUsername: string;
 }): Promise<void> {
 	const subscriber = await getSubscriberById(input.subscriberId);
 
@@ -409,17 +472,32 @@ export async function resendVerificationForSubscriber(input: {
 		throw new Error("Only pending subscribers can receive another verification email.");
 	}
 
-	await issueVerificationForSubscriber({
+	const result = await issueVerificationForSubscriber({
 		subscriberId: subscriber.id,
 		email: subscriber.email,
 		baseUrl: input.baseUrl,
 		sendVerificationEmail: input.sendVerificationEmail,
 		updateStatusToPending: false,
+		actor: { type: "admin", username: input.adminUsername },
+	});
+
+	await logAdminAudit({
+		adminUsername: input.adminUsername,
+		actionType: "verification_resend",
+		targetSubscriberId: subscriber.id,
+		targetEmailEventId: result.emailEventId,
+		metadata: {
+			email: subscriber.email,
+			verificationTokenId: result.verificationTokenId,
+		},
 	});
 }
 
-export async function unsubscribeSubscriberById(subscriberId: string): Promise<void> {
-	const subscriber = await getSubscriberById(subscriberId);
+export async function unsubscribeSubscriberById(input: {
+	subscriberId: string;
+	adminUsername: string;
+}): Promise<void> {
+	const subscriber = await getSubscriberById(input.subscriberId);
 
 	if (!subscriber) {
 		throw new Error("NOT_FOUND");
@@ -440,17 +518,195 @@ export async function unsubscribeSubscriberById(subscriberId: string): Promise<v
 				WHERE id = ?
 			`
 		)
-		.bind(timestamp, timestamp, subscriberId)
+		.bind(timestamp, timestamp, input.subscriberId)
 		.run();
+
+	await logAdminAudit({
+		adminUsername: input.adminUsername,
+		actionType: "force_unsubscribe",
+		targetSubscriberId: input.subscriberId,
+		metadata: {
+			email: subscriber.email,
+		},
+	});
 }
 
-export async function deleteSubscriberById(subscriberId: string): Promise<void> {
-	const subscriber = await getSubscriberById(subscriberId);
+export async function deleteSubscriberById(input: {
+	subscriberId: string;
+	adminUsername: string;
+}): Promise<void> {
+	const subscriber = await getSubscriberById(input.subscriberId);
 
 	if (!subscriber) {
 		throw new Error("NOT_FOUND");
 	}
 
+	await logAdminAudit({
+		adminUsername: input.adminUsername,
+		actionType: "hard_delete_requested",
+		targetSubscriberId: input.subscriberId,
+		metadata: {
+			email: subscriber.email,
+		},
+	});
+
 	const db = await getFundingDb();
-	await db.prepare("DELETE FROM subscribers WHERE id = ?").bind(subscriberId).run();
+	await db.prepare("DELETE FROM subscribers WHERE id = ?").bind(input.subscriberId).run();
+
+	await logAdminAudit({
+		adminUsername: input.adminUsername,
+		actionType: "hard_delete_completed",
+		metadata: {
+			deletedSubscriberId: input.subscriberId,
+			email: subscriber.email,
+		},
+	});
+}
+
+export async function sendAdminTestEmailToRecipient(input: {
+	email: string;
+	adminUsername: string;
+}): Promise<{ emailEventId: string }> {
+	const email = normalizeEmailAddress(input.email);
+
+	if (!isEmailLike(email)) {
+		throw new Error("Please enter a valid email address.");
+	}
+
+	const timestamp = nowIso();
+
+	try {
+		const delivery = await sendAdminTestEmail({
+			email,
+			adminUsername: input.adminUsername,
+		});
+
+		const emailEventId = await createEmailEvent({
+			emailType: "admin_test",
+			recipientEmail: email,
+			providerName: delivery.providerName,
+			providerMessageId: delivery.providerMessageId,
+			triggeredByType: "admin",
+			triggeredByUser: input.adminUsername,
+			resultStatus: delivery.resultStatus,
+			providerResponseSummary: delivery.providerResponseSummary,
+			attemptedAt: timestamp,
+		});
+
+		await logAdminAudit({
+			adminUsername: input.adminUsername,
+			actionType: "manual_test_send",
+			targetEmailEventId: emailEventId,
+			metadata: {
+				email,
+			},
+		});
+
+		return { emailEventId };
+	} catch (error) {
+		const failure = toDeliveryErrorDetails(error);
+		const emailEventId = await createEmailEvent({
+			emailType: "admin_test",
+			recipientEmail: email,
+			providerName: failure.providerName,
+			triggeredByType: "admin",
+			triggeredByUser: input.adminUsername,
+			resultStatus: "failed",
+			providerResponseSummary: failure.providerResponseSummary,
+			errorCode: failure.errorCode,
+			errorMessage: failure.errorMessage,
+			attemptedAt: timestamp,
+		});
+
+		await logAdminAudit({
+			adminUsername: input.adminUsername,
+			actionType: "manual_test_send_failed",
+			targetEmailEventId: emailEventId,
+			metadata: {
+				email,
+				errorCode: failure.errorCode,
+			},
+		});
+
+		throw error;
+	}
+}
+
+export async function replayEmailEventById(input: {
+	emailEventId: string;
+	baseUrl: string;
+	sendVerificationEmail: SendVerificationEmailFn;
+	adminUsername: string;
+}): Promise<void> {
+	const db = await getFundingDb();
+	const event = await db
+		.prepare(
+			`
+				SELECT
+					id,
+					email_type,
+					recipient_email,
+					subscriber_id
+				FROM email_events
+				WHERE id = ?
+			`
+		)
+		.bind(input.emailEventId)
+		.first<{
+			id: string;
+			email_type: "verification" | "admin_test";
+			recipient_email: string;
+			subscriber_id: string | null;
+		}>();
+
+	if (!event) {
+		throw new Error("NOT_FOUND");
+	}
+
+	if (event.email_type === "verification") {
+		if (!event.subscriber_id) {
+			throw new Error("Verification event is missing a subscriber reference.");
+		}
+
+		await resendVerificationForSubscriber({
+			subscriberId: event.subscriber_id,
+			baseUrl: input.baseUrl,
+			sendVerificationEmail: input.sendVerificationEmail,
+			adminUsername: input.adminUsername,
+		});
+
+		await logAdminAudit({
+			adminUsername: input.adminUsername,
+			actionType: "replay_failed_email",
+			targetSubscriberId: event.subscriber_id,
+			targetEmailEventId: input.emailEventId,
+			metadata: {
+				emailType: event.email_type,
+				recipientEmail: event.recipient_email,
+			},
+		});
+
+		return;
+	}
+
+	if (event.email_type === "admin_test") {
+		await sendAdminTestEmailToRecipient({
+			email: event.recipient_email,
+			adminUsername: input.adminUsername,
+		});
+
+		await logAdminAudit({
+			adminUsername: input.adminUsername,
+			targetEmailEventId: input.emailEventId,
+			actionType: "replay_failed_email",
+			metadata: {
+				emailType: event.email_type,
+				recipientEmail: event.recipient_email,
+			},
+		});
+
+		return;
+	}
+
+	throw new Error("Replay is only available for verification and admin test emails.");
 }

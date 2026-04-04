@@ -9,9 +9,12 @@ type RouteContext = {
 
 export async function POST(_request: Request, context: RouteContext) {
 	try {
-		await requireAdminApiSession();
+		const session = await requireAdminApiSession();
 		const { subscriberId } = await context.params;
-		await unsubscribeSubscriberById(subscriberId);
+		await unsubscribeSubscriberById({
+			subscriberId,
+			adminUsername: session.username,
+		});
 		return NextResponse.json({ ok: true });
 	} catch (error) {
 		return adminErrorResponse(error);

@@ -1,15 +1,30 @@
 @import "tailwindcss";
 
 :root {
-	--background: #f8fafc;
-	--foreground: #111827;
+	--background: #f6ebe3;
+	--foreground: #4b1e25;
+	--surface: #fbf5ef;
+	--surface-strong: #fff9f4;
+	--surface-card: #fff8f2;
+	--surface-soft: #f8efe8;
+	--border: #d3c7b9;
+	--muted: #7b5e64;
+	--accent: #8b2332;
+	--accent-deep: #721c28;
+	--accent-soft: #f2d9d8;
+	--danger-border: #d7a6aa;
+	--danger-surface: #f7e7e8;
+	--radius-panel: 0.4rem;
+	--radius-box: 0.32rem;
+	--radius-chip: 0.24rem;
+	--selection: rgba(139, 35, 50, 0.16);
 }
 
 @theme inline {
 	--color-background: var(--background);
 	--color-foreground: var(--foreground);
-	--font-sans: var(--font-space-grotesk);
-	--font-mono: var(--font-ibm-plex-mono);
+	--font-sans: var(--font-inter);
+	--font-mono: var(--font-founders-mono);
 }
 
 * {
@@ -23,13 +38,17 @@ html {
 body {
 	background: var(--background);
 	color: var(--foreground);
-	font-family: var(--font-space-grotesk), sans-serif;
+	font-family: var(--font-inter), system-ui, sans-serif;
+	text-rendering: geometricPrecision;
+}
+
+.font-founders {
+	font-family: var(--font-founders-mono), Arial, sans-serif;
 }
 
 a,
 button {
 	transition:
-		transform 160ms ease,
 		box-shadow 160ms ease,
 		background-color 160ms ease,
 		border-color 160ms ease,
@@ -37,12 +56,7 @@ button {
 		opacity 160ms ease;
 }
 
-a:hover,
-button:hover {
-	transform: translateY(-1px);
-}
-
 ::selection {
-	background: rgba(13, 148, 136, 0.18);
-	color: #0f172a;
+	background: var(--selection);
+	color: var(--foreground);
 }

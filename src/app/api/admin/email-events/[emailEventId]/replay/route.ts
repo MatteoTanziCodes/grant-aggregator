@@ -3,21 +3,21 @@ import { requireAdminApiSession } from "@/server/admin/auth";
 import { adminErrorResponse } from "@/server/admin/http";
 import { getCloudflareEnv } from "@/server/cloudflare/context";
 import { sendVerificationEmail } from "@/server/subscriptions/email";
-import { resendVerificationForSubscriber } from "@/server/subscriptions/repository";
+import { replayEmailEventById } from "@/server/subscriptions/repository";
 
 type RouteContext = {
-	params: Promise<{ subscriberId: string }>;
+	params: Promise<{ emailEventId: string }>;
 };
 
 export async function POST(request: Request, context: RouteContext) {
 	try {
 		const session = await requireAdminApiSession();
-		const { subscriberId } = await context.params;
+		const { emailEventId } = await context.params;
 		const env = await getCloudflareEnv();
 		const origin = env.EMAIL_VERIFICATION_BASE_URL ?? new URL(request.url).origin;
 
-		await resendVerificationForSubscriber({
-			subscriberId,
+		await replayEmailEventById({
+			emailEventId,
 			baseUrl: origin,
 			sendVerificationEmail,
 			adminUsername: session.username,

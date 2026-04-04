@@ -13,15 +13,19 @@
 		"upload": "opennextjs-cloudflare build && opennextjs-cloudflare upload",
 		"preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
 		"cf-typegen": "wrangler types --env-interface CloudflareEnv ./cloudflare-env.d.ts",
-		"db:local:init": "wrangler d1 execute grant-aggregator --local --file=./migrations/d1/0001_initial.sql",
+		"db:local:init": "wrangler d1 execute grant-aggregator --local --file=./migrations/d1/0001_initial.sql && wrangler d1 execute grant-aggregator --local --file=./migrations/d1/0002_email_observability.sql",
 		"db:local:tables": "wrangler d1 execute grant-aggregator --local --command \"SELECT name FROM sqlite_master WHERE type='table' ORDER BY name\"",
 		"db:local:reset": "node -e \"require('fs').rmSync('.wrangler/state',{recursive:true,force:true})\" && npm run db:local:init"
 	},
 	"dependencies": {
+		"@formkit/auto-animate": "^0.9.0",
 		"@opennextjs/cloudflare": "^1.17.3",
+		"clsx": "^2.1.1",
 		"next": "^16.2.2",
 		"react": "19.1.5",
-		"react-dom": "19.1.5"
+		"react-dom": "19.1.5",
+		"react-wrap-balancer": "^1.1.1",
+		"tailwind-merge": "^3.5.0"
 	},
 	"devDependencies": {
 		"@eslint/eslintrc": "^3",
