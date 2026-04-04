@@ -5,12 +5,71 @@ import Balancer from "react-wrap-balancer";
 
 export const dynamic = "force-dynamic";
 
+function isObservabilityMigrationError(error: unknown): boolean {
+	if (!(error instanceof Error)) {
+		return false;
+	}
+
+	return (
+		error.message.includes("no such table: email_events") ||
+		error.message.includes("no such table: admin_audit_log")
+	);
+}
+
 export default async function AdminDebugPage() {
 	const session = await requireAdminPageSession();
-	const [{ items, total }, overview] = await Promise.all([
-		listAdminSubscribers({ status: "all", limit: 100, offset: 0 }),
-		getAdminOverview({ staleHours: 72 }),
-	]);
+	let data:
+		| {
+				items: Awaited<ReturnType<typeof listAdminSubscribers>>["items"];
+				total: number;
+				overview: Awaited<ReturnType<typeof getAdminOverview>>;
+		  }
+		| null = null;
+	let missingMigration = false;
+
+	try {
+		const [{ items, total }, overview] = await Promise.all([
+			listAdminSubscribers({ status: "all", limit: 100, offset: 0 }),
+			getAdminOverview({ staleHours: 72 }),
+		]);
+		data = { items, total, overview };
+	} catch (error) {
+		if (!isObservabilityMigrationError(error)) {
+			throw error;
+		}
+		missingMigration = true;
+	}
+
+	if (missingMigration || !data) {
+		return (
+			<main className="relative min-h-screen overflow-hidden bg-[var(--background)] px-6 py-8 text-[var(--foreground)] sm:px-10">
+				<div className="pointer-events-none absolute inset-0">
+					<div className="absolute inset-x-0 top-0 h-px bg-[var(--border)]" />
+				</div>
+				<div className="mx-auto max-w-5xl">
+					<header className="relative mb-8 border-b border-[var(--border)] pb-6">
+						<p className="font-founders text-[11px] uppercase tracking-[0.32em] text-[var(--accent)]">Operational admin</p>
+						<h1 className="font-founders mt-3 max-w-4xl text-[2.6rem] uppercase tracking-[-0.08em]">
+							<Balancer>Admin schema update required</Balancer>
+						</h1>
+					</header>
+
+					<section className="rounded-[var(--radius-panel)] border border-[var(--danger-border)] bg-[var(--danger-surface)] p-6">
+						<p className="font-founders text-[11px] uppercase tracking-[0.24em] text-[var(--accent)]">Missing migration</p>
+						<p className="mt-3 max-w-3xl text-sm leading-7 text-[var(--foreground)]">
+							This deployment expects the email observability tables from migration <code>0002_email_observability.sql</code>, but the production D1 database does not have them yet.
+						</p>
+						<p className="mt-4 text-sm leading-7 text-[var(--foreground)]">
+							Apply the remote migration, redeploy if needed, and then reload this page.
+						</p>
+						<pre className="mt-5 overflow-x-auto rounded-[var(--radius-box)] border border-[var(--border)] bg-[var(--surface-strong)] p-4 text-xs leading-6 text-[var(--foreground)]">
+							npx wrangler d1 execute grant-aggregator --remote --file=./migrations/d1/0002_email_observability.sql
+						</pre>
+					</section>
+				</div>
+			</main>
+		);
+	}
 
 	return (
 		<main className="relative min-h-screen overflow-hidden bg-[var(--background)] px-6 py-8 text-[var(--foreground)] sm:px-10">
@@ -31,9 +90,9 @@ export default async function AdminDebugPage() {
 				</header>
 
 				<AdminDebugConsole
-					initialItems={items}
-					initialTotal={total}
-					initialOverview={overview}
+					initialItems={data.items}
+					initialTotal={data.total}
+					initialOverview={data.overview}
 					username={session.username}
 				/>
 			</div>

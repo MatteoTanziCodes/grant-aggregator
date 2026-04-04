@@ -126,6 +126,7 @@ function formatDate(value: string | null): string {
 	return new Intl.DateTimeFormat("en-CA", {
 		dateStyle: "medium",
 		timeStyle: "short",
+		timeZone: "America/Toronto",
 	}).format(new Date(value));
 }
 
