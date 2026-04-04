@@ -1,5 +1,4 @@
 import { redirect } from "next/navigation";
-import Balancer from "react-wrap-balancer";
 import { AdminLoginForm } from "@/components/admin-login-form";
 import { readAdminSession } from "@/server/admin/auth";
 
@@ -22,8 +21,8 @@ export default async function AdminLoginPage() {
 				<section className="grid w-full gap-4 lg:grid-cols-[0.95fr_1.05fr]">
 					<div className="rounded-[var(--radius-panel)] border border-[var(--border)] bg-[var(--surface)] p-8 shadow-[0_14px_40px_rgba(75,30,37,0.05)]">
 						<p className="font-founders text-[11px] uppercase tracking-[0.32em] text-[var(--accent)]">Operational admin</p>
-						<h1 className="font-founders mt-4 max-w-xl text-[2.6rem] uppercase leading-[0.96] tracking-[-0.08em]">
-							<Balancer>Admin access for subscriber and delivery operations</Balancer>
+						<h1 className="font-founders mt-4 max-w-xl text-[2.6rem] uppercase leading-[0.96] tracking-[-0.08em] text-balance">
+							Admin access for subscriber and delivery operations
 						</h1>
 						<p className="mt-5 max-w-lg text-sm leading-7 text-[var(--muted)]">
 							Internal-only console for subscriber state, verification deliveries, resend operations, and hard deletes.
@@ -42,8 +41,8 @@ export default async function AdminLoginPage() {
 
 					<div className="rounded-[var(--radius-panel)] border border-[var(--border)] bg-[var(--surface-strong)] px-8 py-10 shadow-[0_14px_40px_rgba(75,30,37,0.05)] sm:px-10">
 						<p className="font-founders text-[11px] uppercase tracking-[0.28em] text-[var(--accent)]">Two-factor sign-in</p>
-						<h2 className="font-founders mt-4 text-[2.2rem] uppercase tracking-[-0.07em] text-[var(--foreground)]">
-							<Balancer>Open the console</Balancer>
+						<h2 className="font-founders mt-4 text-[2.2rem] uppercase tracking-[-0.07em] text-[var(--foreground)] text-balance">
+							Open the console
 						</h2>
 						<p className="mt-3 max-w-md text-sm leading-7 text-[var(--muted)]">
 							This panel is intentionally narrow in scope and is protected by a signed session cookie issued only after TOTP passes.

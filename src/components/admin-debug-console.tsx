@@ -3,7 +3,6 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { useAutoAnimate } from "@formkit/auto-animate/react";
-import Balancer from "react-wrap-balancer";
 import { cn } from "@/lib/cn";
 
 type AdminSubscriberStatus = "pending_verification" | "verified" | "unsubscribed";
@@ -520,8 +519,8 @@ export function AdminDebugConsole({
 				<div className="flex flex-wrap items-center justify-between gap-3">
 					<div>
 						<p className="font-founders text-[11px] uppercase tracking-[0.28em] text-[var(--accent)]">Admin console</p>
-						<h2 className="font-founders mt-2 text-[1.9rem] uppercase tracking-[-0.07em] text-[var(--foreground)]">
-							<Balancer>Subscribers</Balancer>
+						<h2 className="font-founders mt-2 text-[1.9rem] uppercase tracking-[-0.07em] text-[var(--foreground)] text-balance">
+							Subscribers
 						</h2>
 						<p className="mt-2 text-sm text-[var(--muted)]">
 							{total} records visible. Signed in as <span className="font-medium text-[var(--foreground)]">{username}</span>.
@@ -742,8 +741,8 @@ export function AdminDebugConsole({
 							<div className="flex flex-wrap items-start justify-between gap-4">
 								<div>
 									<p className="font-founders text-[11px] uppercase tracking-[0.28em] text-[var(--accent)]">Subscriber detail</p>
-									<h2 className="font-founders mt-3 text-[1.8rem] uppercase tracking-[-0.07em]">
-										<Balancer>{selectedListItem.email}</Balancer>
+									<h2 className="font-founders mt-3 text-[1.8rem] uppercase tracking-[-0.07em] text-balance">
+										{selectedListItem.email}
 									</h2>
 									<p className="mt-2 text-sm text-[var(--muted)]">
 										Status: {statusLabel(selectedListItem.status)}. Source: {selectedListItem.sourceLabel ?? "—"}.

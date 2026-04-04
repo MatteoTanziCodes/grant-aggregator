@@ -1,7 +1,6 @@
 import { AdminDebugConsole } from "@/components/admin-debug-console";
 import { requireAdminPageSession } from "@/server/admin/auth";
 import { getAdminOverview, listAdminSubscribers } from "@/server/admin/repository";
-import Balancer from "react-wrap-balancer";
 
 export const dynamic = "force-dynamic";
 
@@ -49,9 +48,7 @@ export default async function AdminDebugPage() {
 				<div className="mx-auto max-w-5xl">
 					<header className="relative mb-8 border-b border-[var(--border)] pb-6">
 						<p className="font-founders text-[11px] uppercase tracking-[0.32em] text-[var(--accent)]">Operational admin</p>
-						<h1 className="font-founders mt-3 max-w-4xl text-[2.6rem] uppercase tracking-[-0.08em]">
-							<Balancer>Admin schema update required</Balancer>
-						</h1>
+						<h1 className="font-founders mt-3 max-w-4xl text-[2.6rem] uppercase tracking-[-0.08em] text-balance">Admin schema update required</h1>
 					</header>
 
 					<section className="rounded-[var(--radius-panel)] border border-[var(--danger-border)] bg-[var(--danger-surface)] p-6">
@@ -80,9 +77,7 @@ export default async function AdminDebugPage() {
 				<header className="relative mb-8 flex flex-wrap items-end justify-between gap-4 border-b border-[var(--border)] pb-6">
 					<div>
 						<p className="font-founders text-[11px] uppercase tracking-[0.32em] text-[var(--accent)]">Operational admin</p>
-						<h1 className="font-founders mt-3 max-w-4xl text-[2.6rem] uppercase tracking-[-0.08em]">
-							<Balancer>Subscriber and delivery debug</Balancer>
-						</h1>
+						<h1 className="font-founders mt-3 max-w-4xl text-[2.6rem] uppercase tracking-[-0.08em] text-balance">Subscriber and delivery debug</h1>
 						<p className="mt-3 max-w-3xl text-sm leading-7 text-[var(--muted)]">
 							Inspect subscriber state, resend verification mail, force unsubscribe, and permanently delete records while the funding backend stays in stealth.
 						</p>
