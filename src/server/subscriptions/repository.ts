@@ -62,8 +62,21 @@ export type VerificationResult =
 	| "invalid"
 	| "missing";
 
+export type VerificationPreviewResult =
+	| "ready"
+	| "already-verified"
+	| "expired"
+	| "invalid"
+	| "missing";
+
 export type UnsubscribeResult =
 	| "unsubscribed"
+	| "already-unsubscribed"
+	| "invalid"
+	| "missing";
+
+export type UnsubscribePreviewResult =
+	| "ready"
 	| "already-unsubscribed"
 	| "invalid"
 	| "missing";
@@ -411,6 +424,50 @@ export async function consumeVerificationToken(token: string | null): Promise<Ve
 	return "verified";
 }
 
+export async function previewVerificationToken(token: string | null): Promise<VerificationPreviewResult> {
+	if (!token) {
+		return "missing";
+	}
+
+	const db = await getFundingDb();
+	const tokenHash = await hashVerificationToken(token);
+	const tokenRow = await db
+		.prepare(
+			`
+				SELECT
+					email_verification_tokens.id AS token_id,
+					email_verification_tokens.subscriber_id AS subscriber_id,
+					email_verification_tokens.expires_at AS expires_at,
+					email_verification_tokens.consumed_at AS consumed_at,
+					subscribers.status AS subscriber_status
+				FROM email_verification_tokens
+				INNER JOIN subscribers
+					ON subscribers.id = email_verification_tokens.subscriber_id
+				WHERE email_verification_tokens.token_hash = ?
+			`
+		)
+		.bind(tokenHash)
+		.first<VerificationLookupRow>();
+
+	if (!tokenRow) {
+		return "invalid";
+	}
+
+	if (tokenRow.subscriber_status === "verified") {
+		return "already-verified";
+	}
+
+	if (tokenRow.consumed_at) {
+		return "invalid";
+	}
+
+	if (Date.parse(tokenRow.expires_at) < Date.now()) {
+		return "expired";
+	}
+
+	return "ready";
+}
+
 export async function unsubscribeFromToken(token: string | null): Promise<UnsubscribeResult> {
 	if (!token) {
 		return "missing";
@@ -454,6 +511,34 @@ export async function unsubscribeFromToken(token: string | null): Promise<Unsubs
 		.run();
 
 	return "unsubscribed";
+}
+
+export async function previewUnsubscribeToken(token: string | null): Promise<UnsubscribePreviewResult> {
+	if (!token) {
+		return "missing";
+	}
+
+	const payload = await verifyUnsubscribeToken(token);
+
+	if (!payload) {
+		return "invalid";
+	}
+
+	const db = await getFundingDb();
+	const subscriber = await db
+		.prepare("SELECT status FROM subscribers WHERE id = ? AND email = ?")
+		.bind(payload.subscriberId, normalizeEmailAddress(payload.email))
+		.first<{ status: SubscriberRow["status"] }>();
+
+	if (!subscriber) {
+		return "invalid";
+	}
+
+	if (subscriber.status === "unsubscribed") {
+		return "already-unsubscribed";
+	}
+
+	return "ready";
 }
 
 export async function resendVerificationForSubscriber(input: {

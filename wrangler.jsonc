@@ -16,6 +16,13 @@
 			"database_id": "3fc46fbd-b63f-4a12-90f5-038744e0f12d"
 		}
 	],
+	// Add before enabling raw crawl artifact storage in production:
+	// "r2_buckets": [
+	// 	{
+	// 		"binding": "CRAWL_ARTIFACTS",
+	// 		"bucket_name": "grant-aggregator-artifacts"
+	// 	}
+	// ],
 	// Optional if you want verification emails delivered through Resend:
 	// "vars": {
 	// 	"EMAIL_FROM": "updates@yourdomain.com",

@@ -13,7 +13,7 @@
 		"upload": "opennextjs-cloudflare build && opennextjs-cloudflare upload",
 		"preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
 		"cf-typegen": "wrangler types --env-interface CloudflareEnv ./cloudflare-env.d.ts",
-		"db:local:init": "wrangler d1 execute grant-aggregator --local --file=./migrations/d1/0001_initial.sql && wrangler d1 execute grant-aggregator --local --file=./migrations/d1/0002_email_observability.sql",
+		"db:local:init": "wrangler d1 execute grant-aggregator --local --file=./migrations/d1/0001_initial.sql && wrangler d1 execute grant-aggregator --local --file=./migrations/d1/0002_email_observability.sql && wrangler d1 execute grant-aggregator --local --file=./migrations/d1/0003_security_hardening.sql && wrangler d1 execute grant-aggregator --local --file=./migrations/d1/0004_ingestion_guardrails.sql && wrangler d1 execute grant-aggregator --local --file=./migrations/d1/0005_raw_artifact_storage.sql",
 		"db:local:tables": "wrangler d1 execute grant-aggregator --local --command \"SELECT name FROM sqlite_master WHERE type='table' ORDER BY name\"",
 		"db:local:reset": "node -e \"require('fs').rmSync('.wrangler/state',{recursive:true,force:true})\" && npm run db:local:init"
 	},
