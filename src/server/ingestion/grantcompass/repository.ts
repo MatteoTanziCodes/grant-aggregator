@@ -18,6 +18,10 @@ export type GrantCompassNormalizedCandidate = {
 	amountText: string;
 	amountMinCad: number | null;
 	amountMaxCad: number | null;
+	deadlineText: string | null;
+	deadlineAt: string | null;
+	deadlinePrecision: "exact" | "rolling" | "window" | "unknown";
+	deadlineVerified: boolean;
 	fundingTypeText: string;
 	governmentLevelText: string;
 	provinceText: string;
@@ -313,6 +317,10 @@ export async function upsertGrantCompassOpportunity(input: {
 						record_status = ?,
 						amount_min_cad = ?,
 						amount_max_cad = ?,
+						deadline_text = ?,
+						deadline_at = ?,
+						deadline_precision = ?,
+						deadline_verified = ?,
 						summary = ?,
 						eligibility_summary = ?,
 						provinces_json = ?,
@@ -339,6 +347,10 @@ export async function upsertGrantCompassOpportunity(input: {
 				input.candidate.recordStatus,
 				input.candidate.amountMinCad,
 				input.candidate.amountMaxCad,
+				input.candidate.deadlineText,
+				input.candidate.deadlineAt,
+				input.candidate.deadlinePrecision,
+				input.candidate.deadlineVerified ? 1 : 0,
 				input.candidate.summary,
 				null,
 				JSON.stringify(input.candidate.provinceCodes),
@@ -369,6 +381,10 @@ export async function upsertGrantCompassOpportunity(input: {
 						record_status,
 						amount_min_cad,
 						amount_max_cad,
+						deadline_text,
+						deadline_at,
+						deadline_precision,
+						deadline_verified,
 						summary,
 						eligibility_summary,
 						provinces_json,
@@ -384,7 +400,7 @@ export async function upsertGrantCompassOpportunity(input: {
 						opportunity_origin,
 						discovery_key
 					)
-					VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, ?, ?, ?, ?, NULL, ?, ?, ?, ?, ?)
+					VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, ?, ?, ?, ?, NULL, ?, ?, ?, ?, ?)
 				`
 			)
 			.bind(
@@ -398,6 +414,10 @@ export async function upsertGrantCompassOpportunity(input: {
 				input.candidate.recordStatus,
 				input.candidate.amountMinCad,
 				input.candidate.amountMaxCad,
+				input.candidate.deadlineText,
+				input.candidate.deadlineAt,
+				input.candidate.deadlinePrecision,
+				input.candidate.deadlineVerified ? 1 : 0,
 				input.candidate.summary,
 				JSON.stringify(input.candidate.provinceCodes),
 				JSON.stringify(input.candidate.industryTags),

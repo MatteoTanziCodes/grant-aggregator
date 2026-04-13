@@ -14,6 +14,9 @@ export type GrantCompassExtractedCandidate = {
 	title: string;
 	organizationName: string;
 	amountText: string;
+	deadlineText: string | null;
+	deadlineAt: string | null;
+	deadlineVerified: boolean;
 	fundingTypeText: string;
 	governmentLevelText: string;
 	provinceText: string;
@@ -33,6 +36,9 @@ type GrantCompassDatasetRow = {
 	organization?: unknown;
 	description?: unknown;
 	amount?: unknown;
+	deadline?: unknown;
+	deadlineDate?: unknown;
+	deadlineVerified?: unknown;
 	level?: unknown;
 	fundingType?: unknown;
 	provinces?: unknown;
@@ -103,6 +109,19 @@ function parseDatasetRows(input: string): GrantCompassDatasetRow[] {
 	return parsed as GrantCompassDatasetRow[];
 }
 
+function normalizeDeadlineAt(value: unknown): string | null {
+	if (!isNonEmptyString(value)) {
+		return null;
+	}
+
+	const trimmed = value.trim();
+	if (!/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+		return null;
+	}
+
+	return `${trimmed}T00:00:00.000Z`;
+}
+
 export async function parseGrantCompassDatasetArtifact(input: string): Promise<GrantCompassExtractedCandidate[]> {
 	const rows = parseDatasetRows(input);
 	const candidates: GrantCompassExtractedCandidate[] = [];
@@ -136,6 +155,9 @@ export async function parseGrantCompassDatasetArtifact(input: string): Promise<G
 			title: row.title.trim(),
 			organizationName: row.organization.trim(),
 			amountText: isNonEmptyString(row.amount) ? row.amount.trim() : "Unknown",
+			deadlineText: isNonEmptyString(row.deadline) ? row.deadline.trim() : null,
+			deadlineAt: normalizeDeadlineAt(row.deadlineDate),
+			deadlineVerified: row.deadlineVerified === true,
 			fundingTypeText: isNonEmptyString(row.fundingType)
 				? capitalizeKebabOrWord(row.fundingType.trim())
 				: "Unknown",

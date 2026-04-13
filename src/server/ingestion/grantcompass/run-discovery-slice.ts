@@ -129,12 +129,38 @@ function mapProgramStatusToRecordStatus(
 	}
 }
 
+function mapDeadlinePrecision(
+	deadlineText: string | null,
+	deadlineAt: string | null
+): GrantCompassNormalizedCandidate["deadlinePrecision"] {
+	if (deadlineAt) {
+		return "exact";
+	}
+
+	const normalized = deadlineText?.trim().toLowerCase() ?? "";
+	if (!normalized) {
+		return "unknown";
+	}
+
+	if (
+		normalized.includes("ongoing") ||
+		normalized.includes("continuous") ||
+		normalized.includes("year-round") ||
+		normalized.includes("rolling")
+	) {
+		return "rolling";
+	}
+
+	return "window";
+}
+
 function normalizeCandidate(
 	candidate: GrantCompassExtractedCandidate
 ): GrantCompassNormalizedCandidate {
 	const { amountMinCad, amountMaxCad } = normalizeAmountRange(candidate.amountText);
 	const fundingCategory = mapFundingTypeToCategory(candidate.fundingTypeText);
 	const recordStatus = mapProgramStatusToRecordStatus(candidate.programStatusText);
+	const deadlinePrecision = mapDeadlinePrecision(candidate.deadlineText, candidate.deadlineAt);
 
 	return {
 		externalKey: candidate.externalKey,
@@ -148,6 +174,10 @@ function normalizeCandidate(
 		amountText: candidate.amountText,
 		amountMinCad,
 		amountMaxCad,
+		deadlineText: candidate.deadlineText,
+		deadlineAt: candidate.deadlineAt,
+		deadlinePrecision,
+		deadlineVerified: candidate.deadlineVerified,
 		fundingTypeText: candidate.fundingTypeText,
 		governmentLevelText: candidate.governmentLevelText,
 		provinceText: candidate.provinceText,
@@ -176,6 +206,10 @@ function normalizeCandidate(
 			amountText: candidate.amountText,
 			amountMinCad,
 			amountMaxCad,
+			deadlineText: candidate.deadlineText,
+			deadlineAt: candidate.deadlineAt,
+			deadlinePrecision,
+			deadlineVerified: candidate.deadlineVerified,
 			fundingTypeText: candidate.fundingTypeText,
 			governmentLevelText: candidate.governmentLevelText,
 			provinceText: candidate.provinceText,
