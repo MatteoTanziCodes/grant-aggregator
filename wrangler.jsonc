@@ -42,6 +42,12 @@
 		// see https://opennext.js.org/cloudflare/howtos/image
 		"binding": "IMAGES"
 	},
+	"routes": [
+		{
+			"pattern": "grant-aggregator.matteo-tanzi.dev",
+			"custom_domain": true
+		}
+	],
 	"observability": {
 		"enabled": true
 	}
