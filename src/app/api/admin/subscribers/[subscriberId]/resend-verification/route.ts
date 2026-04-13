@@ -4,6 +4,7 @@ import { adminErrorResponse } from "@/server/admin/http";
 import { getCloudflareEnv } from "@/server/cloudflare/context";
 import { sendVerificationEmail } from "@/server/subscriptions/email";
 import { resendVerificationForSubscriber } from "@/server/subscriptions/repository";
+import { assertTrustedOrigin } from "@/server/security/request";
 
 type RouteContext = {
 	params: Promise<{ subscriberId: string }>;
@@ -11,9 +12,10 @@ type RouteContext = {
 
 export async function POST(request: Request, context: RouteContext) {
 	try {
+		const env = await getCloudflareEnv();
+		assertTrustedOrigin(request, [env.EMAIL_VERIFICATION_BASE_URL ?? new URL(request.url).origin]);
 		const session = await requireAdminApiSession();
 		const { subscriberId } = await context.params;
-		const env = await getCloudflareEnv();
 		const origin = env.EMAIL_VERIFICATION_BASE_URL ?? new URL(request.url).origin;
 
 		await resendVerificationForSubscriber({

@@ -1,12 +1,13 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { getCloudflareEnv } from "@/server/cloudflare/context";
+import { getCloudflareEnv, getFundingDb } from "@/server/cloudflare/context";
 import { verifyTotpCode } from "@/server/admin/totp";
 
 const ADMIN_SESSION_COOKIE = "grant_admin_session";
 const SESSION_DURATION_SECONDS = 60 * 60 * 12;
 
 type AdminSessionPayload = {
+	sessionId: string;
 	username: string;
 	exp: number;
 };
@@ -36,6 +37,14 @@ function constantTimeEqual(left: string, right: string): boolean {
 	}
 
 	return mismatch === 0;
+}
+
+function nowIso(): string {
+	return new Date().toISOString();
+}
+
+function sessionExpiresAtIso(): string {
+	return new Date(Date.now() + SESSION_DURATION_SECONDS * 1000).toISOString();
 }
 
 async function signValue(value: string, secret: string): Promise<string> {
@@ -76,6 +85,43 @@ async function getAdminRuntimeConfig() {
 	};
 }
 
+async function createSignedSessionValue(payload: AdminSessionPayload): Promise<string> {
+	const { sessionSecret } = await getAdminRuntimeConfig();
+	const encodedPayload = toBase64Url(JSON.stringify(payload));
+	const signature = await signValue(encodedPayload, sessionSecret);
+	return `${encodedPayload}.${signature}`;
+}
+
+async function parseSignedSessionValue(rawValue: string): Promise<AdminSessionPayload | null> {
+	const { sessionSecret } = await getAdminRuntimeConfig();
+	const [encodedPayload, providedSignature] = rawValue.split(".");
+	if (!encodedPayload || !providedSignature) {
+		return null;
+	}
+
+	const expectedSignature = await signValue(encodedPayload, sessionSecret);
+	if (!constantTimeEqual(providedSignature, expectedSignature)) {
+		return null;
+	}
+
+	try {
+		const payload = JSON.parse(fromBase64Url(encodedPayload)) as AdminSessionPayload;
+		if (
+			typeof payload.sessionId !== "string" ||
+			typeof payload.username !== "string" ||
+			typeof payload.exp !== "number"
+		) {
+			return null;
+		}
+		if (payload.exp <= Math.floor(Date.now() / 1000)) {
+			return null;
+		}
+		return payload;
+	} catch {
+		return null;
+	}
+}
+
 export function getAdminSessionCookieName(): string {
 	return ADMIN_SESSION_COOKIE;
 }
@@ -105,29 +151,37 @@ export async function checkAdminCredentials(input: {
 	};
 }
 
-export async function validateAdminCredentials(input: {
-	username: string;
-	password: string;
-	totpCode: string;
-}): Promise<boolean> {
-	const result = await checkAdminCredentials(input);
-	return result.usernameMatches && result.passwordMatches && result.totpMatches;
-}
-
 export async function createAdminSessionValue(username: string): Promise<string> {
-	const { sessionSecret } = await getAdminRuntimeConfig();
-	const payload: AdminSessionPayload = {
-		username,
-		exp: Math.floor(Date.now() / 1000) + SESSION_DURATION_SECONDS,
-	};
-	const encodedPayload = toBase64Url(JSON.stringify(payload));
-	const signature = await signValue(encodedPayload, sessionSecret);
+	const db = await getFundingDb();
+	const sessionId = crypto.randomUUID();
+	const createdAt = nowIso();
+	const expiresAt = sessionExpiresAtIso();
 
-	return `${encodedPayload}.${signature}`;
+	await db
+		.prepare(
+			`
+				INSERT INTO admin_sessions (
+					id,
+					username,
+					created_at,
+					expires_at,
+					last_seen_at,
+					revoked_at
+				)
+				VALUES (?, ?, ?, ?, ?, NULL)
+			`
+		)
+		.bind(sessionId, username, createdAt, expiresAt, createdAt)
+		.run();
+
+	return createSignedSessionValue({
+		sessionId,
+		username,
+		exp: Math.floor(Date.parse(expiresAt) / 1000),
+	});
 }
 
 export async function readAdminSession(): Promise<AdminSessionPayload | null> {
-	const { sessionSecret } = await getAdminRuntimeConfig();
 	const cookieStore = await cookies();
 	const rawValue = cookieStore.get(ADMIN_SESSION_COOKIE)?.value;
 
@@ -135,28 +189,59 @@ export async function readAdminSession(): Promise<AdminSessionPayload | null> {
 		return null;
 	}
 
-	const [encodedPayload, providedSignature] = rawValue.split(".");
-	if (!encodedPayload || !providedSignature) {
+	const payload = await parseSignedSessionValue(rawValue);
+	if (!payload) {
 		return null;
 	}
 
-	const expectedSignature = await signValue(encodedPayload, sessionSecret);
-	if (!constantTimeEqual(providedSignature, expectedSignature)) {
+	const db = await getFundingDb();
+	const sessionRow = await db
+		.prepare(
+			`
+				SELECT id, username, expires_at, revoked_at
+				FROM admin_sessions
+				WHERE id = ?
+			`
+		)
+		.bind(payload.sessionId)
+		.first<{
+			id: string;
+			username: string;
+			expires_at: string;
+			revoked_at: string | null;
+		}>();
+
+	if (!sessionRow || sessionRow.revoked_at || Date.parse(sessionRow.expires_at) <= Date.now()) {
 		return null;
 	}
 
-	try {
-		const payload = JSON.parse(fromBase64Url(encodedPayload)) as AdminSessionPayload;
-		if (typeof payload.username !== "string" || typeof payload.exp !== "number") {
-			return null;
-		}
-		if (payload.exp <= Math.floor(Date.now() / 1000)) {
-			return null;
-		}
-		return payload;
-	} catch {
+	await db
+		.prepare("UPDATE admin_sessions SET last_seen_at = ? WHERE id = ?")
+		.bind(nowIso(), payload.sessionId)
+		.run();
+
+	return payload;
+}
+
+export async function revokeCurrentAdminSession(): Promise<AdminSessionPayload | null> {
+	const cookieStore = await cookies();
+	const rawValue = cookieStore.get(ADMIN_SESSION_COOKIE)?.value;
+	if (!rawValue) {
 		return null;
 	}
+
+	const payload = await parseSignedSessionValue(rawValue);
+	if (!payload) {
+		return null;
+	}
+
+	const db = await getFundingDb();
+	await db
+		.prepare("UPDATE admin_sessions SET revoked_at = ? WHERE id = ?")
+		.bind(nowIso(), payload.sessionId)
+		.run();
+
+	return payload;
 }
 
 export async function requireAdminPageSession(): Promise<AdminSessionPayload> {

@@ -3,7 +3,6 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { useAutoAnimate } from "@formkit/auto-animate/react";
-import Balancer from "react-wrap-balancer";
 import { cn } from "@/lib/cn";
 
 type AdminSubscriberStatus = "pending_verification" | "verified" | "unsubscribed";
@@ -126,6 +125,7 @@ function formatDate(value: string | null): string {
 	return new Intl.DateTimeFormat("en-CA", {
 		dateStyle: "medium",
 		timeStyle: "short",
+		timeZone: "America/Toronto",
 	}).format(new Date(value));
 }
 
@@ -519,8 +519,8 @@ export function AdminDebugConsole({
 				<div className="flex flex-wrap items-center justify-between gap-3">
 					<div>
 						<p className="font-founders text-[11px] uppercase tracking-[0.28em] text-[var(--accent)]">Admin console</p>
-						<h2 className="font-founders mt-2 text-[1.9rem] uppercase tracking-[-0.07em] text-[var(--foreground)]">
-							<Balancer>Subscribers</Balancer>
+						<h2 className="font-founders mt-2 text-[1.9rem] uppercase tracking-[-0.07em] text-[var(--foreground)] text-balance">
+							Subscribers
 						</h2>
 						<p className="mt-2 text-sm text-[var(--muted)]">
 							{total} records visible. Signed in as <span className="font-medium text-[var(--foreground)]">{username}</span>.
@@ -536,14 +536,24 @@ export function AdminDebugConsole({
 				</div>
 
 				<div className="mt-5 grid gap-3 sm:grid-cols-[1fr_auto]">
+					<label className="sr-only" htmlFor="admin-subscriber-search">
+						Search subscribers
+					</label>
 					<input
+						id="admin-subscriber-search"
+						name="subscriber_search"
 						type="search"
 						value={query}
 						onChange={(event) => setQuery(event.target.value)}
 						placeholder="Search email"
 						className="rounded-[var(--radius-box)] border border-[var(--border)] bg-[var(--surface-card)] px-4 py-3 text-sm text-[var(--foreground)] outline-none focus:border-[var(--accent)]"
 					/>
+					<label className="sr-only" htmlFor="admin-subscriber-status">
+						Filter by subscriber status
+					</label>
 					<select
+						id="admin-subscriber-status"
+						name="subscriber_status"
 						value={status}
 						onChange={(event) => setStatus(event.target.value as SubscriberFilter)}
 						className="rounded-[var(--radius-box)] border border-[var(--border)] bg-[var(--surface-card)] px-4 py-3 text-sm text-[var(--foreground)] outline-none focus:border-[var(--accent)]"
@@ -609,7 +619,12 @@ export function AdminDebugConsole({
 				<div ref={overviewParent} className="grid gap-4 xl:grid-cols-2">
 					<CollapsiblePanel eyebrow="Debug utility" title="Manual test send" open={!collapsedPanels.manualTest} onToggle={() => togglePanel("manualTest")}>
 						<div className="space-y-3">
+							<label className="sr-only" htmlFor="admin-test-email">
+								Test email recipient
+							</label>
 							<input
+								id="admin-test-email"
+								name="test_email_recipient"
 								type="email"
 								value={testEmail}
 								onChange={(event) => setTestEmail(event.target.value)}
@@ -673,6 +688,8 @@ export function AdminDebugConsole({
 						onToggle={() => togglePanel("stalePending")}
 						aside={
 							<select
+								id="admin-stale-hours"
+								name="stale_hours"
 								value={staleHours}
 								onChange={(event) => setStaleHours(event.target.value)}
 								className="rounded-[var(--radius-chip)] border border-[var(--border)] bg-white px-3 py-1 text-[11px] uppercase tracking-[0.08em] text-[var(--foreground)] outline-none"
@@ -724,8 +741,8 @@ export function AdminDebugConsole({
 							<div className="flex flex-wrap items-start justify-between gap-4">
 								<div>
 									<p className="font-founders text-[11px] uppercase tracking-[0.28em] text-[var(--accent)]">Subscriber detail</p>
-									<h2 className="font-founders mt-3 text-[1.8rem] uppercase tracking-[-0.07em]">
-										<Balancer>{selectedListItem.email}</Balancer>
+									<h2 className="font-founders mt-3 text-[1.8rem] uppercase tracking-[-0.07em] text-balance">
+										{selectedListItem.email}
 									</h2>
 									<p className="mt-2 text-sm text-[var(--muted)]">
 										Status: {statusLabel(selectedListItem.status)}. Source: {selectedListItem.sourceLabel ?? "—"}.

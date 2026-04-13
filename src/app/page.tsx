@@ -1,5 +1,4 @@
 import { SignupForm } from "@/components/signup-form";
-import Balancer from "react-wrap-balancer";
 
 export default function Home() {
 	return (
@@ -29,9 +28,7 @@ export default function Home() {
 						</p>
 						<div className="mt-5 max-w-5xl">
 							<h1 className="font-founders text-[2.8rem] uppercase leading-[0.98] tracking-[-0.09em] text-balance sm:text-[3.7rem] lg:text-[5.1rem]">
-								<Balancer>
-									Know when funding for <span className="text-[var(--accent)]">Canadian entrepreneurs</span> moves before everyone else does.
-								</Balancer>
+								Know when funding for <span className="text-[var(--accent)]">Canadian entrepreneurs</span> moves before everyone else does.
 							</h1>
 						</div>
 						<p className="mt-8 max-w-2xl text-[1.06rem] leading-8 text-[var(--foreground)]/84">
