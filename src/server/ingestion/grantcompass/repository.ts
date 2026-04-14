@@ -6,13 +6,9 @@ import {
 
 export type DiscoveryTruthTier = "discovery" | "canonical";
 
-export type GrantCompassNormalizedCandidate = {
+export type DiscoveryNormalizedCandidate = {
 	externalKey: string;
 	sourceUrl: string;
-	rowNumber: number;
-	grantCompassId: number;
-	slug: string | null;
-	officialProgramUrl: string | null;
 	title: string;
 	organizationName: string;
 	amountText: string;
@@ -39,7 +35,7 @@ export type GrantCompassNormalizedCandidate = {
 	summary: string | null;
 	recordStatus: "draft" | "active" | "closed" | "rejected";
 	truthTier: DiscoveryTruthTier;
-	opportunityOrigin: "grantcompass";
+	opportunityOrigin: string;
 	directFunding: boolean;
 	canadianBusinessEligible: boolean;
 	industryTags: string[];
@@ -49,7 +45,14 @@ export type GrantCompassNormalizedCandidate = {
 	normalizedPayload: Record<string, unknown>;
 };
 
-export type GrantCompassCandidateIngestionRow = {
+export type GrantCompassNormalizedCandidate = DiscoveryNormalizedCandidate & {
+	rowNumber: number;
+	grantCompassId: number;
+	slug: string | null;
+	officialProgramUrl: string | null;
+};
+
+export type DiscoveryCandidateIngestionRow = {
 	id: string;
 	crawlRunId: string;
 	sourceId: string;
@@ -70,14 +73,18 @@ export type GrantCompassCandidateIngestionRow = {
 	updatedAt: string;
 };
 
-export type GrantCompassLatestRunSummary = {
+export type GrantCompassCandidateIngestionRow = DiscoveryCandidateIngestionRow;
+
+export type DiscoveryLatestRunSummary = {
 	totalCandidates: number;
 	parseFailures: number;
 	createdCount: number;
 	updatedCount: number;
 	skippedCount: number;
-	items: GrantCompassCandidateIngestionRow[];
+	items: DiscoveryCandidateIngestionRow[];
 };
+
+export type GrantCompassLatestRunSummary = DiscoveryLatestRunSummary;
 
 type CandidateRow = {
 	id: string;
@@ -119,7 +126,7 @@ function parseJsonObject(value: string): Record<string, unknown> {
 	}
 }
 
-function mapCandidateRow(row: CandidateRow): GrantCompassCandidateIngestionRow {
+function mapCandidateRow(row: CandidateRow): DiscoveryCandidateIngestionRow {
 	return {
 		id: row.id,
 		crawlRunId: row.crawl_run_id,
@@ -203,7 +210,7 @@ async function findExistingOpportunityByDiscoveryKey(
 		.first<OpportunityLookupRow>();
 }
 
-export async function writeGrantCompassCandidateObservation(input: {
+export async function writeDiscoveryCandidateObservation(input: {
 	crawlRunId: string;
 	sourceId: string;
 	externalKey: string;
@@ -217,7 +224,7 @@ export async function writeGrantCompassCandidateObservation(input: {
 	rawPayload: Record<string, unknown>;
 	normalizedPayload?: Record<string, unknown>;
 	parseError?: string | null;
-	upsertOutcome?: GrantCompassCandidateIngestionRow["upsertOutcome"];
+	upsertOutcome?: DiscoveryCandidateIngestionRow["upsertOutcome"];
 	opportunityId?: string | null;
 }): Promise<void> {
 	const db = await getFundingDb();
@@ -287,9 +294,15 @@ export async function writeGrantCompassCandidateObservation(input: {
 		.run();
 }
 
-export async function upsertGrantCompassOpportunity(input: {
+export async function writeGrantCompassCandidateObservation(
+	input: Parameters<typeof writeDiscoveryCandidateObservation>[0]
+): Promise<void> {
+	return writeDiscoveryCandidateObservation(input);
+}
+
+export async function upsertDiscoveryOpportunity(input: {
 	sourceId: string;
-	candidate: GrantCompassNormalizedCandidate;
+	candidate: DiscoveryNormalizedCandidate;
 	artifactKey: string | null;
 	contentHash: string | null;
 	observedAt: string;
@@ -477,9 +490,15 @@ export async function upsertGrantCompassOpportunity(input: {
 	};
 }
 
-export async function getGrantCompassRunCandidateSummary(
+export async function upsertGrantCompassOpportunity(
+	input: Parameters<typeof upsertDiscoveryOpportunity>[0]
+): Promise<Awaited<ReturnType<typeof upsertDiscoveryOpportunity>>> {
+	return upsertDiscoveryOpportunity(input);
+}
+
+export async function getRunCandidateSummary(
 	crawlRunId: string
-): Promise<GrantCompassLatestRunSummary> {
+): Promise<DiscoveryLatestRunSummary> {
 	const db = await getFundingDb();
 	const [countResult, rowsResult] = await db.batch([
 		db
@@ -545,4 +564,10 @@ export async function getGrantCompassRunCandidateSummary(
 		skippedCount: counts.skipped_count ?? 0,
 		items: rowsResult.results.map((row) => mapCandidateRow(row as unknown as CandidateRow)),
 	};
+}
+
+export async function getGrantCompassRunCandidateSummary(
+	crawlRunId: string
+): Promise<GrantCompassLatestRunSummary> {
+	return getRunCandidateSummary(crawlRunId);
 }

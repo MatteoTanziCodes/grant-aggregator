@@ -1,6 +1,6 @@
 import { AdminIngestionConsole } from "@/components/admin-ingestion-console";
 import { requireAdminPageSession } from "@/server/admin/auth";
-import { getGrantCompassAdminSnapshot } from "@/server/admin/ingestion-repository";
+import { listAdminIngestionSnapshots } from "@/server/admin/ingestion-repository";
 
 export const dynamic = "force-dynamic";
 
@@ -19,11 +19,11 @@ function isGrantCompassMigrationError(error: unknown): boolean {
 
 export default async function AdminIngestionPage() {
 	const session = await requireAdminPageSession();
-	let snapshot: Awaited<ReturnType<typeof getGrantCompassAdminSnapshot>> | null = null;
+	let snapshots: Awaited<ReturnType<typeof listAdminIngestionSnapshots>> | null = null;
 	let missingMigration = false;
 
 	try {
-		snapshot = await getGrantCompassAdminSnapshot();
+		snapshots = await listAdminIngestionSnapshots();
 	} catch (error) {
 		if (!isGrantCompassMigrationError(error)) {
 			throw error;
@@ -31,7 +31,7 @@ export default async function AdminIngestionPage() {
 		missingMigration = true;
 	}
 
-	if (missingMigration || !snapshot) {
+	if (missingMigration || !snapshots) {
 		return (
 			<main className="relative min-h-screen overflow-hidden bg-[var(--background)] px-6 py-8 text-[var(--foreground)] sm:px-10">
 				<div className="pointer-events-none absolute inset-0">
@@ -59,7 +59,7 @@ npx wrangler d1 execute grant-aggregator --remote --file=./migrations/d1/0006_gr
 				<div className="absolute inset-x-0 top-0 h-px bg-[var(--border)]" />
 			</div>
 			<div className="mx-auto max-w-7xl">
-				<AdminIngestionConsole initialSnapshot={snapshot} username={session.username} />
+				<AdminIngestionConsole initialSnapshots={snapshots} username={session.username} />
 			</div>
 		</main>
 	);

@@ -72,12 +72,13 @@ type EventItem = {
 	createdAt: string;
 };
 
-export type GrantCompassAdminSnapshot = {
+export type AdminIngestionSnapshot = {
 	source: SourceSnapshot;
 	latestRun: RunSnapshot | null;
 	latestArtifact: ArtifactSnapshot | null;
 	candidateSummary: CandidateSummary | null;
 	events: EventItem[];
+	description: string;
 };
 
 function formatDate(value: string | null): string {
@@ -137,36 +138,38 @@ function Section({
 }
 
 export function AdminIngestionConsole({
-	initialSnapshot,
+	initialSnapshots,
 	username,
 }: {
-	initialSnapshot: GrantCompassAdminSnapshot;
+	initialSnapshots: AdminIngestionSnapshot[];
 	username: string;
 }) {
-	const [snapshot, setSnapshot] = useState(initialSnapshot);
-	const [selectedSourceId, setSelectedSourceId] = useState(initialSnapshot.source.id);
+	const [snapshots, setSnapshots] = useState(initialSnapshots);
+	const [selectedSourceId, setSelectedSourceId] = useState(initialSnapshots[0]?.source.id ?? "");
 	const [statusMessage, setStatusMessage] = useState<string | null>(null);
 	const [isRunning, setIsRunning] = useState(false);
 	const [eventsParent] = useAutoAnimate();
 
-	const sources = [
-		{
-			id: snapshot.source.id,
-			label: snapshot.source.name,
-			description: "Discovery ingestion",
-			active: snapshot.source.active,
-		},
-	];
+	const sources = snapshots.map((snapshot) => ({
+		id: snapshot.source.id,
+		label: snapshot.source.name,
+		description: snapshot.source.crawlStrategy.replaceAll("-", " "),
+		active: snapshot.source.active,
+	}));
+	const snapshot =
+		snapshots.find((item) => item.source.id === selectedSourceId) ?? snapshots[0] ?? null;
 
 	const selectedSource = sources.find((source) => source.id === selectedSourceId) ?? sources[0];
 
 	async function refreshSnapshot() {
-		const response = await fetch("/api/admin/ingestion/grantcompass");
-		const payload = (await response.json()) as GrantCompassAdminSnapshot & { error?: string };
+		const response = await fetch(`/api/admin/ingestion/${selectedSourceId}`);
+		const payload = (await response.json()) as AdminIngestionSnapshot & { error?: string };
 		if (!response.ok) {
-			throw new Error(payload.error ?? "Unable to refresh GrantCompass ingestion snapshot.");
+			throw new Error(payload.error ?? "Unable to refresh ingestion snapshot.");
 		}
-		setSnapshot(payload);
+		setSnapshots((current) =>
+			current.map((item) => (item.source.id === payload.source.id ? payload : item))
+		);
 	}
 
 	async function handleRun() {
@@ -174,27 +177,35 @@ export function AdminIngestionConsole({
 		setStatusMessage(null);
 
 		try {
-			const response = await fetch("/api/admin/ingestion/grantcompass", { method: "POST" });
+			const response = await fetch(`/api/admin/ingestion/${selectedSourceId}`, { method: "POST" });
 			const payload = (await response.json()) as
-				| { snapshot?: GrantCompassAdminSnapshot; error?: string }
+				| { snapshot?: AdminIngestionSnapshot; error?: string }
 				| { error?: string };
 
 			if (!response.ok) {
-				throw new Error("error" in payload ? payload.error ?? "GrantCompass ingestion failed." : "GrantCompass ingestion failed.");
+				throw new Error("error" in payload ? payload.error ?? "Ingestion failed." : "Ingestion failed.");
 			}
 
 			if ("snapshot" in payload && payload.snapshot) {
-				setSnapshot(payload.snapshot);
+				setSnapshots((current) =>
+					current.map((item) =>
+						item.source.id === payload.snapshot?.source.id ? payload.snapshot : item
+					)
+				);
 			} else {
 				await refreshSnapshot();
 			}
 
-			setStatusMessage("GrantCompass discovery ingestion completed.");
+			setStatusMessage(`${snapshot?.source.name ?? "Source"} ingestion completed.`);
 		} catch (error) {
-			setStatusMessage(error instanceof Error ? error.message : "GrantCompass ingestion failed.");
+			setStatusMessage(error instanceof Error ? error.message : "Ingestion failed.");
 		} finally {
 			setIsRunning(false);
 		}
+	}
+
+	if (!snapshot || !selectedSource) {
+		return null;
 	}
 
 	return (
@@ -245,7 +256,7 @@ export function AdminIngestionConsole({
 								{selectedSource.label}
 							</h2>
 							<p className="mt-3 max-w-3xl text-sm leading-7 text-[var(--muted)]">
-								Manual bounded crawl of the public GrantCompass explore dataset. Rows land as discovery-tier opportunities with explicit aggregator provenance.
+								{snapshot.description}
 							</p>
 						</div>
 						<button
@@ -289,7 +300,7 @@ export function AdminIngestionConsole({
 							{snapshot.latestRun.errorMessage ? <div className="grid gap-1"><dt className="text-[var(--muted)]">Error</dt><dd className="text-[var(--accent)]">{snapshot.latestRun.errorMessage}</dd></div> : null}
 						</dl>
 					) : (
-						<p className="text-sm text-[var(--muted)]">No GrantCompass crawl has run yet.</p>
+						<p className="text-sm text-[var(--muted)]">No crawl has run yet for this source.</p>
 					)}
 					</Section>
 
