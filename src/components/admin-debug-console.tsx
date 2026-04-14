@@ -655,9 +655,9 @@ export function AdminDebugConsole({
 						<div className="space-y-3">
 							{overview.failedEmailEvents.length === 0 ? <p className="text-sm text-[var(--muted)]">No failed email events right now.</p> : null}
 							{overview.failedEmailEvents.map((event) => (
-								<div key={event.id} className="rounded-[var(--radius-box)] border border-[var(--border)] bg-white p-3 text-sm">
+								<div key={event.id} className="min-w-0 overflow-hidden rounded-[var(--radius-box)] border border-[var(--border)] bg-white p-3 text-sm">
 									<div className="flex flex-wrap items-center justify-between gap-2">
-										<p className="font-medium text-[var(--foreground)]">{event.recipientEmail}</p>
+										<p className="min-w-0 break-words font-medium text-[var(--foreground)]">{event.recipientEmail}</p>
 										<span className="font-founders rounded-[var(--radius-chip)] border border-[var(--danger-border)] bg-[var(--danger-surface)] px-2 py-1 text-[10px] uppercase tracking-[0.12em] text-[var(--accent)]">
 											{eventStatusLabel(event.resultStatus)}
 										</span>
@@ -665,7 +665,7 @@ export function AdminDebugConsole({
 									<p className="mt-2 text-[var(--muted)]">
 										{humanizeEventType(event.emailType)} · {formatDate(event.attemptedAt)}
 									</p>
-									{event.errorMessage ? <p className="mt-2 text-[var(--accent)]">{event.errorMessage}</p> : null}
+									{event.errorMessage ? <p className="mt-2 break-words text-[var(--accent)]">{event.errorMessage}</p> : null}
 									{event.canReplay ? (
 										<button
 											type="button"
@@ -850,17 +850,17 @@ export function AdminDebugConsole({
 									{isDetailLoading ? <p className="text-sm text-[var(--muted)]">Loading timeline...</p> : null}
 									{!isDetailLoading && detail?.emailTimeline.length === 0 ? <p className="text-sm text-[var(--muted)]">No email events recorded for this subscriber.</p> : null}
 									{detail?.emailTimeline.map((event) => (
-										<div key={event.id} className="rounded-[var(--radius-box)] border border-[var(--border)] bg-white p-3 text-sm">
+										<div key={event.id} className="min-w-0 overflow-hidden rounded-[var(--radius-box)] border border-[var(--border)] bg-white p-3 text-sm">
 											<div className="flex flex-wrap items-center justify-between gap-3">
-												<p className="font-medium text-[var(--foreground)]">{humanizeEventType(event.emailType)} · {eventStatusLabel(event.resultStatus)}</p>
+												<p className="min-w-0 break-words font-medium text-[var(--foreground)]">{humanizeEventType(event.emailType)} · {eventStatusLabel(event.resultStatus)}</p>
 												<span className="font-founders rounded-[var(--radius-chip)] border border-[var(--border)] bg-[var(--surface-card)] px-2 py-1 text-[10px] uppercase tracking-[0.12em] text-[var(--accent)]">
 													{event.triggeredByType}{event.triggeredByUser ? `:${event.triggeredByUser}` : ""}
 												</span>
 											</div>
 											<p className="mt-1 text-[var(--muted)]">{formatDate(event.attemptedAt)} · provider {event.providerName}</p>
-											{event.providerMessageId ? <p className="mt-1 text-[var(--muted)]">Provider id: {event.providerMessageId}</p> : null}
-											{event.errorCode || event.errorMessage ? <p className="mt-2 text-[var(--accent)]">{event.errorCode ? `${event.errorCode}: ` : ""}{event.errorMessage}</p> : null}
-											{event.providerResponseSummary ? <p className="mt-2 break-all text-[var(--muted)]">{event.providerResponseSummary}</p> : null}
+											{event.providerMessageId ? <p className="mt-1 break-all text-[var(--muted)]">Provider id: {event.providerMessageId}</p> : null}
+											{event.errorCode || event.errorMessage ? <p className="mt-2 break-words text-[var(--accent)]">{event.errorCode ? `${event.errorCode}: ` : ""}{event.errorMessage}</p> : null}
+											{event.providerResponseSummary ? <p className="mt-2 whitespace-pre-wrap break-words text-[var(--muted)]">{event.providerResponseSummary}</p> : null}
 											{event.canReplay ? (
 												<button
 													type="button"

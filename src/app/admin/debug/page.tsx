@@ -86,7 +86,7 @@ export default async function AdminDebugPage() {
 							href="/admin/ingestion"
 							className="font-founders rounded-[var(--radius-box)] border border-[var(--border)] bg-[var(--surface-card)] px-4 py-2 text-[11px] uppercase tracking-[0.16em] text-[var(--accent)]"
 						>
-							GrantCompass ingestion
+							Sources
 						</a>
 					</header>
 
