@@ -144,9 +144,21 @@ export function AdminIngestionConsole({
 	username: string;
 }) {
 	const [snapshot, setSnapshot] = useState(initialSnapshot);
+	const [selectedSourceId, setSelectedSourceId] = useState(initialSnapshot.source.id);
 	const [statusMessage, setStatusMessage] = useState<string | null>(null);
 	const [isRunning, setIsRunning] = useState(false);
 	const [eventsParent] = useAutoAnimate();
+
+	const sources = [
+		{
+			id: snapshot.source.id,
+			label: snapshot.source.name,
+			description: "Discovery ingestion",
+			active: snapshot.source.active,
+		},
+	];
+
+	const selectedSource = sources.find((source) => source.id === selectedSourceId) ?? sources[0];
 
 	async function refreshSnapshot() {
 		const response = await fetch("/api/admin/ingestion/grantcompass");
@@ -186,38 +198,75 @@ export function AdminIngestionConsole({
 	}
 
 	return (
-		<div className="space-y-5">
+		<div className="grid gap-5 xl:grid-cols-[0.34fr_0.66fr]">
 			<section className="rounded-[var(--radius-panel)] border border-[var(--border)] bg-[var(--surface)] p-5 shadow-[0_14px_40px_rgba(75,30,37,0.05)]">
-				<div className="flex flex-wrap items-center justify-between gap-4">
-					<div>
-						<p className="font-founders text-[11px] uppercase tracking-[0.28em] text-[var(--accent)]">Discovery ingestion</p>
-						<h1 className="font-founders mt-3 text-[2.1rem] uppercase tracking-[-0.08em] text-[var(--foreground)]">
-							GrantCompass
-						</h1>
-						<p className="mt-3 max-w-3xl text-sm leading-7 text-[var(--muted)]">
-							Manual bounded crawl of the public GrantCompass explore dataset. Rows land as discovery-tier opportunities with explicit aggregator provenance. Signed in as{" "}
-							<span className="font-medium text-[var(--foreground)]">{username}</span>.
-						</p>
-					</div>
-					<button
-						type="button"
-						onClick={() => void handleRun()}
-						disabled={isRunning}
-						className="font-founders rounded-[var(--radius-box)] bg-[var(--accent)] px-4 py-2 text-[11px] uppercase tracking-[0.14em] text-white disabled:cursor-not-allowed disabled:bg-[color:rgba(139,35,50,0.5)]"
-					>
-						{isRunning ? "Running..." : "Run GrantCompass ingestion"}
-					</button>
-				</div>
+				<p className="font-founders text-[11px] uppercase tracking-[0.28em] text-[var(--accent)]">Ingestion</p>
+				<h1 className="font-founders mt-3 text-[2rem] uppercase tracking-[-0.08em] text-[var(--foreground)]">Sources</h1>
+				<p className="mt-3 text-sm leading-7 text-[var(--muted)]">
+					Select a source to inspect its current crawl status, artifacts, candidates, and structured events. Signed in as{" "}
+					<span className="font-medium text-[var(--foreground)]">{username}</span>.
+				</p>
 
-				{statusMessage ? (
-					<div className="mt-4 rounded-[var(--radius-box)] border border-[var(--border)] bg-[var(--surface-card)] px-4 py-3 text-sm text-[var(--foreground)]">
-						{statusMessage}
-					</div>
-				) : null}
+				<div className="mt-6 space-y-3">
+					{sources.map((source) => {
+						const isSelected = source.id === selectedSource.id;
+
+						return (
+							<button
+								key={source.id}
+								type="button"
+								onClick={() => setSelectedSourceId(source.id)}
+								className={cn(
+									"w-full rounded-[var(--radius-box)] border px-4 py-4 text-left",
+									isSelected
+										? "border-[var(--accent)] bg-[var(--surface-soft)] shadow-[0_10px_28px_rgba(75,30,37,0.06)]"
+										: "border-[var(--border)] bg-[var(--surface-card)]"
+								)}
+							>
+								<div className="flex flex-wrap items-center justify-between gap-2">
+									<p className="font-medium text-[var(--foreground)]">{source.label}</p>
+									<span className="font-founders rounded-[var(--radius-chip)] border border-[var(--border)] bg-white px-2 py-1 text-[10px] uppercase tracking-[0.12em] text-[var(--accent)]">
+										{source.active ? "Active" : "Inactive"}
+									</span>
+								</div>
+								<p className="mt-2 text-sm text-[var(--muted)]">{source.description}</p>
+							</button>
+						);
+					})}
+				</div>
 			</section>
 
-			<div className="grid gap-5 lg:grid-cols-2">
-				<Section eyebrow="Source" title="Configured target">
+			<div className="space-y-5">
+				<section className="rounded-[var(--radius-panel)] border border-[var(--border)] bg-[var(--surface)] p-5 shadow-[0_14px_40px_rgba(75,30,37,0.05)]">
+					<div className="flex flex-wrap items-center justify-between gap-4">
+						<div>
+							<p className="font-founders text-[11px] uppercase tracking-[0.28em] text-[var(--accent)]">{selectedSource.description}</p>
+							<h2 className="font-founders mt-3 text-[2.1rem] uppercase tracking-[-0.08em] text-[var(--foreground)]">
+								{selectedSource.label}
+							</h2>
+							<p className="mt-3 max-w-3xl text-sm leading-7 text-[var(--muted)]">
+								Manual bounded crawl of the public GrantCompass explore dataset. Rows land as discovery-tier opportunities with explicit aggregator provenance.
+							</p>
+						</div>
+						<button
+							type="button"
+							onClick={() => void handleRun()}
+							disabled={isRunning}
+							className="font-founders rounded-[var(--radius-box)] bg-[var(--accent)] px-4 py-2 text-[11px] uppercase tracking-[0.14em] text-white disabled:cursor-not-allowed disabled:bg-[color:rgba(139,35,50,0.5)]"
+						>
+							{isRunning ? "Running..." : "Run ingestion"}
+						</button>
+					</div>
+
+					{statusMessage ? (
+						<div className="mt-4 rounded-[var(--radius-box)] border border-[var(--border)] bg-[var(--surface-card)] px-4 py-3 text-sm text-[var(--foreground)]">
+							{statusMessage}
+						</div>
+					) : null}
+				</section>
+
+				<div className="grid gap-5 lg:grid-cols-2">
+					<Section eyebrow="Source" title="Configured target">
 					<dl className="space-y-3 text-sm">
 						<div className="flex justify-between gap-4"><dt className="text-[var(--muted)]">Source id</dt><dd>{snapshot.source.id}</dd></div>
 						<div className="flex justify-between gap-4"><dt className="text-[var(--muted)]">Kind</dt><dd>{snapshot.source.kind}</dd></div>
@@ -226,9 +275,9 @@ export function AdminIngestionConsole({
 						<div className="grid gap-1"><dt className="text-[var(--muted)]">Base URL</dt><dd className="break-all">{snapshot.source.baseUrl}</dd></div>
 						{snapshot.source.notes ? <div className="grid gap-1"><dt className="text-[var(--muted)]">Notes</dt><dd>{snapshot.source.notes}</dd></div> : null}
 					</dl>
-				</Section>
+					</Section>
 
-				<Section eyebrow="Latest run" title="Crawl status">
+					<Section eyebrow="Latest run" title="Crawl status">
 					{snapshot.latestRun ? (
 						<dl className="space-y-3 text-sm">
 							<div className="flex justify-between gap-4"><dt className="text-[var(--muted)]">Status</dt><dd>{snapshot.latestRun.status}</dd></div>
@@ -242,9 +291,9 @@ export function AdminIngestionConsole({
 					) : (
 						<p className="text-sm text-[var(--muted)]">No GrantCompass crawl has run yet.</p>
 					)}
-				</Section>
+					</Section>
 
-				<Section eyebrow="Artifact" title="Raw page snapshot">
+					<Section eyebrow="Artifact" title="Raw page snapshot">
 					{snapshot.latestArtifact ? (
 						<dl className="space-y-3 text-sm">
 							<div className="flex justify-between gap-4"><dt className="text-[var(--muted)]">Type</dt><dd>{snapshot.latestArtifact.artifactType}</dd></div>
@@ -260,9 +309,9 @@ export function AdminIngestionConsole({
 							No artifact metadata found for the latest run. If `CRAWL_ARTIFACTS` is not configured, the crawl still runs but storage is skipped explicitly.
 						</p>
 					)}
-				</Section>
+					</Section>
 
-				<Section eyebrow="Candidates" title="Parse and upsert summary">
+					<Section eyebrow="Candidates" title="Parse and upsert summary">
 					{snapshot.candidateSummary ? (
 						<dl className="space-y-3 text-sm">
 							<div className="flex justify-between gap-4"><dt className="text-[var(--muted)]">Parsed rows</dt><dd>{snapshot.candidateSummary.totalCandidates}</dd></div>
@@ -274,70 +323,71 @@ export function AdminIngestionConsole({
 					) : (
 						<p className="text-sm text-[var(--muted)]">No candidate extraction has been recorded yet.</p>
 					)}
+					</Section>
+				</div>
+
+				<Section eyebrow="Observability" title="Candidate rows">
+					{snapshot.candidateSummary?.items.length ? (
+						<div className="space-y-3">
+							{snapshot.candidateSummary.items.map((item) => (
+								<div key={item.id} className="rounded-[var(--radius-box)] border border-[var(--border)] bg-white p-4 text-sm">
+									<div className="flex flex-wrap items-start justify-between gap-3">
+										<div>
+											<p className="font-medium text-[var(--foreground)]">{item.title ?? item.externalKey}</p>
+											<p className="mt-1 text-[var(--muted)]">
+												{item.organizationName ?? "Unknown organization"} · {item.amountText ?? "No amount"} · {item.provinceText ?? "No province"}
+											</p>
+										</div>
+										<span
+											className={cn(
+												"font-founders rounded-[var(--radius-chip)] border px-3 py-1 text-[10px] uppercase tracking-[0.12em]",
+												item.upsertOutcome === "parse_failed"
+													? "border-[var(--danger-border)] bg-[var(--danger-surface)] text-[var(--accent)]"
+													: "border-[var(--border)] bg-[var(--surface-card)] text-[var(--accent)]"
+											)}
+										>
+											{item.upsertOutcome ?? "pending"}
+										</span>
+									</div>
+									<p className="mt-2 text-[var(--muted)]">
+										{item.fundingTypeText ?? "Unknown type"} · {item.governmentLevelText ?? "Unknown level"}
+									</p>
+									{item.parseError ? <p className="mt-2 text-[var(--accent)]">{item.parseError}</p> : null}
+									{Object.keys(item.normalizedPayload).length > 0 ? (
+										<p className="mt-2 text-[var(--muted)]">{metadataPreview(item.normalizedPayload)}</p>
+									) : null}
+								</div>
+							))}
+						</div>
+					) : (
+						<p className="text-sm text-[var(--muted)]">No candidate rows stored for the latest run.</p>
+					)}
+				</Section>
+
+				<Section eyebrow="Crawl log" title="Structured events">
+					<div ref={eventsParent} className="space-y-3">
+						{snapshot.events.length === 0 ? (
+							<p className="text-sm text-[var(--muted)]">No crawl events recorded yet.</p>
+						) : (
+							snapshot.events.map((event) => (
+								<div key={event.id} className="rounded-[var(--radius-box)] border border-[var(--border)] bg-white p-4 text-sm">
+									<div className="flex flex-wrap items-center justify-between gap-3">
+										<p className="font-medium text-[var(--foreground)]">{event.eventType}</p>
+										<span className="font-founders rounded-[var(--radius-chip)] border border-[var(--border)] bg-[var(--surface-card)] px-3 py-1 text-[10px] uppercase tracking-[0.12em] text-[var(--accent)]">
+											{event.level}
+										</span>
+									</div>
+									<p className="mt-1 text-[var(--muted)]">{formatDate(event.createdAt)}</p>
+									<p className="mt-2 text-[var(--foreground)]">{event.message}</p>
+									{Object.keys(event.metadata).length > 0 ? (
+										<p className="mt-2 text-[var(--muted)]">{metadataPreview(event.metadata)}</p>
+									) : null}
+								</div>
+							))
+						)}
+					</div>
 				</Section>
 			</div>
-
-			<Section eyebrow="Observability" title="Candidate rows">
-				{snapshot.candidateSummary?.items.length ? (
-					<div className="space-y-3">
-						{snapshot.candidateSummary.items.map((item) => (
-							<div key={item.id} className="rounded-[var(--radius-box)] border border-[var(--border)] bg-white p-4 text-sm">
-								<div className="flex flex-wrap items-start justify-between gap-3">
-									<div>
-										<p className="font-medium text-[var(--foreground)]">{item.title ?? item.externalKey}</p>
-										<p className="mt-1 text-[var(--muted)]">
-											{item.organizationName ?? "Unknown organization"} · {item.amountText ?? "No amount"} · {item.provinceText ?? "No province"}
-										</p>
-									</div>
-									<span
-										className={cn(
-											"font-founders rounded-[var(--radius-chip)] border px-3 py-1 text-[10px] uppercase tracking-[0.12em]",
-											item.upsertOutcome === "parse_failed"
-												? "border-[var(--danger-border)] bg-[var(--danger-surface)] text-[var(--accent)]"
-												: "border-[var(--border)] bg-[var(--surface-card)] text-[var(--accent)]"
-										)}
-									>
-										{item.upsertOutcome ?? "pending"}
-									</span>
-								</div>
-								<p className="mt-2 text-[var(--muted)]">
-									{item.fundingTypeText ?? "Unknown type"} · {item.governmentLevelText ?? "Unknown level"}
-								</p>
-								{item.parseError ? <p className="mt-2 text-[var(--accent)]">{item.parseError}</p> : null}
-								{Object.keys(item.normalizedPayload).length > 0 ? (
-									<p className="mt-2 text-[var(--muted)]">{metadataPreview(item.normalizedPayload)}</p>
-								) : null}
-							</div>
-						))}
-					</div>
-				) : (
-					<p className="text-sm text-[var(--muted)]">No candidate rows stored for the latest run.</p>
-				)}
-			</Section>
-
-			<Section eyebrow="Crawl log" title="Structured events">
-				<div ref={eventsParent} className="space-y-3">
-					{snapshot.events.length === 0 ? (
-						<p className="text-sm text-[var(--muted)]">No crawl events recorded yet.</p>
-					) : (
-						snapshot.events.map((event) => (
-							<div key={event.id} className="rounded-[var(--radius-box)] border border-[var(--border)] bg-white p-4 text-sm">
-								<div className="flex flex-wrap items-center justify-between gap-3">
-									<p className="font-medium text-[var(--foreground)]">{event.eventType}</p>
-									<span className="font-founders rounded-[var(--radius-chip)] border border-[var(--border)] bg-[var(--surface-card)] px-3 py-1 text-[10px] uppercase tracking-[0.12em] text-[var(--accent)]">
-										{event.level}
-									</span>
-								</div>
-								<p className="mt-1 text-[var(--muted)]">{formatDate(event.createdAt)}</p>
-								<p className="mt-2 text-[var(--foreground)]">{event.message}</p>
-								{Object.keys(event.metadata).length > 0 ? (
-									<p className="mt-2 text-[var(--muted)]">{metadataPreview(event.metadata)}</p>
-								) : null}
-							</div>
-						))
-					)}
-				</div>
-			</Section>
 		</div>
 	);
 }

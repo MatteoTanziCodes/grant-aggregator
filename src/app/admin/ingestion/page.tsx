@@ -40,7 +40,7 @@ export default async function AdminIngestionPage() {
 				<div className="mx-auto max-w-5xl">
 					<section className="rounded-[var(--radius-panel)] border border-[var(--danger-border)] bg-[var(--danger-surface)] p-6">
 						<p className="font-founders text-[11px] uppercase tracking-[0.24em] text-[var(--accent)]">Missing migration</p>
-						<h1 className="font-founders mt-3 text-[2.3rem] uppercase tracking-[-0.07em]">GrantCompass ingestion schema required</h1>
+						<h1 className="font-founders mt-3 text-[2.3rem] uppercase tracking-[-0.07em]">Ingestion schema required</h1>
 						<p className="mt-4 text-sm leading-7 text-[var(--foreground)]">
 							This deployment is missing the GrantCompass discovery ingestion schema. Apply migration <code>0006_grantcompass_discovery_slice.sql</code> and reload the page.
 						</p>
