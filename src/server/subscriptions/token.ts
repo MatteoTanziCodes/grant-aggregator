@@ -1,11 +1,16 @@
 const TOKEN_BYTES = 32;
 
 function toBase64Url(bytes: Uint8Array): string {
-	return Buffer.from(bytes)
+	let encoded = Buffer.from(bytes)
 		.toString("base64")
 		.replace(/\+/g, "-")
-		.replace(/\//g, "_")
-		.replace(/=+$/g, "");
+		.replace(/\//g, "_");
+
+	while (encoded.endsWith("=")) {
+		encoded = encoded.slice(0, -1);
+	}
+
+	return encoded;
 }
 
 export function createVerificationToken(): string {

@@ -42,7 +42,6 @@ function decodeHtmlEntities(value: string): string {
 			String.fromCodePoint(Number.parseInt(code, 16))
 		)
 		.replace(/&nbsp;/g, " ")
-		.replace(/&amp;/g, "&")
 		.replace(/&quot;/g, '"')
 		.replace(/&#039;|&apos;/g, "'")
 		.replace(/&rsquo;/g, "'")
@@ -52,7 +51,8 @@ function decodeHtmlEntities(value: string): string {
 		.replace(/&mdash;/g, "-")
 		.replace(/&hellip;/g, "...")
 		.replace(/&lt;/g, "<")
-		.replace(/&gt;/g, ">");
+		.replace(/&gt;/g, ">")
+		.replace(/&amp;/g, "&");
 }
 
 function stripHtml(value: string): string {

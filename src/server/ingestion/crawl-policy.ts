@@ -27,7 +27,7 @@ export type CrawlRunUsage = {
 };
 
 export const DEFAULT_CRAWL_LIMITS: CrawlRunLimits = {
-	maxConcurrentRuns: 2,
+	maxConcurrentRuns: 8,
 	sourceCooldownMinutes: 30,
 	maxPagesPerRun: 25,
 	maxBytesPerRun: 5_000_000,

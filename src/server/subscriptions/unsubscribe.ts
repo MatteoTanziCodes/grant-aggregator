@@ -8,11 +8,26 @@ type UnsubscribePayload = {
 };
 
 function toBase64Url(value: string): string {
-	return Buffer.from(value, "utf8")
+	let encoded = Buffer.from(value, "utf8")
 		.toString("base64")
 		.replace(/\+/g, "-")
-		.replace(/\//g, "_")
-		.replace(/=+$/g, "");
+		.replace(/\//g, "_");
+
+	while (encoded.endsWith("=")) {
+		encoded = encoded.slice(0, -1);
+	}
+
+	return encoded;
+}
+
+function stripBase64UrlPadding(value: string): string {
+	let normalized = value;
+
+	while (normalized.endsWith("=")) {
+		normalized = normalized.slice(0, -1);
+	}
+
+	return normalized;
 }
 
 function fromBase64Url(value: string): string {
@@ -37,11 +52,12 @@ async function importSigningKey(secret: string): Promise<CryptoKey> {
 async function signValue(value: string, secret: string): Promise<string> {
 	const key = await importSigningKey(secret);
 	const signature = await crypto.subtle.sign("HMAC", key, encoder.encode(value));
-	return Buffer.from(signature)
-		.toString("base64")
-		.replace(/\+/g, "-")
-		.replace(/\//g, "_")
-		.replace(/=+$/g, "");
+	return stripBase64UrlPadding(
+		Buffer.from(signature)
+			.toString("base64")
+			.replace(/\+/g, "-")
+			.replace(/\//g, "_")
+	);
 }
 
 export async function createUnsubscribeToken(payload: UnsubscribePayload): Promise<string> {

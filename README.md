@@ -87,10 +87,13 @@ The production runtime expects these bindings or secrets:
 - `EMAIL_VERIFICATION_BASE_URL`
 - `RESEND_API_KEY`
 - `UNSUBSCRIBE_SECRET`
+- `MONTHLY_JOB_SECRET`
 - `ADMIN_BASIC_AUTH_USERNAME`
 - `ADMIN_BASIC_AUTH_PASSWORD`
 - `ADMIN_TOTP_SECRET`
 - `ADMIN_SESSION_SECRET`
+
+The worker cron is configured in [wrangler.jsonc](/D:/Programming/Projects/grant-aggregator/wrangler.jsonc) to run on the first day of each month at `13:00 UTC` (`0 13 1 * *`), which is `9:00 AM` in Toronto during daylight saving time and `8:00 AM` during standard time.
 
 For Resend production delivery, set `EMAIL_FROM` to an address on a verified domain, for example:
 

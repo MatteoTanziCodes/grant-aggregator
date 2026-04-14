@@ -71,6 +71,11 @@ export type PersistFetchedArtifactResult =
 			artifact: CrawlArtifactRecord;
 	  }
 	| {
+			status: "metadata_only";
+			artifact: CrawlArtifactRecord;
+			reason: "binding_unavailable";
+	  }
+	| {
 			status: "skipped";
 			reason: "binding_unavailable" | "unsupported_content_type";
 	  };
@@ -172,6 +177,24 @@ function buildArtifactStorageKey(input: {
 	].join("/");
 }
 
+function buildMetadataOnlyArtifactStorageKey(input: {
+	sourceId: string;
+	crawlRunId: string;
+	artifactId: string;
+	artifactType: CrawlArtifactType;
+	fetchedAt: string;
+}): string {
+	const safeTimestamp = input.fetchedAt.replaceAll(":", "-").replaceAll(".", "-");
+	return [
+		"metadata-only",
+		"sources",
+		input.sourceId,
+		"runs",
+		input.crawlRunId,
+		`${safeTimestamp}-${input.artifactId}.${artifactExtension(input.artifactType)}`,
+	].join("/");
+}
+
 function mapArtifactRow(row: CrawlArtifactRow): CrawlArtifactRecord {
 	return {
 		id: row.id,
@@ -190,10 +213,81 @@ function mapArtifactRow(row: CrawlArtifactRow): CrawlArtifactRecord {
 	};
 }
 
+async function insertCrawlArtifactMetadata(input: {
+	artifactId: string;
+	crawlRunId: string;
+	sourceId: string;
+	artifactType: CrawlArtifactType;
+	storageKey: string;
+	contentHash: string;
+	httpStatus: number | null;
+	contentType: string | null;
+	finalUrl: string;
+	responseMetadata: Record<string, unknown>;
+	fetchedAt: string;
+	sizeBytes: number;
+	createdAt: string;
+	markAsPrimaryForRun?: boolean;
+}): Promise<void> {
+	const db = await getFundingDb();
+
+	await db
+		.prepare(
+			`
+				INSERT INTO crawl_artifacts (
+					id,
+					crawl_run_id,
+					source_id,
+					artifact_type,
+					storage_key,
+					content_hash,
+					http_status,
+					content_type,
+					final_url,
+					response_metadata_json,
+					fetched_at,
+					size_bytes,
+					created_at
+				)
+				VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+			`
+		)
+		.bind(
+			input.artifactId,
+			input.crawlRunId,
+			input.sourceId,
+			input.artifactType,
+			input.storageKey,
+			input.contentHash,
+			input.httpStatus,
+			input.contentType,
+			input.finalUrl,
+			JSON.stringify(input.responseMetadata),
+			input.fetchedAt,
+			input.sizeBytes,
+			input.createdAt
+		)
+		.run();
+
+	if (input.markAsPrimaryForRun) {
+		await db
+			.prepare(
+				`
+					UPDATE crawl_runs
+					SET
+						artifact_key = ?,
+						content_hash = ?
+					WHERE id = ?
+				`
+			)
+			.bind(input.storageKey, input.contentHash, input.crawlRunId)
+			.run();
+	}
+}
+
 export async function storeCrawlArtifact(
 	input: StoreCrawlArtifactInput
 ): Promise<CrawlArtifactRecord> {
-	const db = await getFundingDb();
 	const bucket = await getCrawlArtifactsBucket();
 	const artifactId = crypto.randomUUID();
 	const fetchedAt = input.fetchedAt ?? nowIso();
@@ -230,58 +324,22 @@ export async function storeCrawlArtifact(
 	});
 
 	try {
-		await db
-			.prepare(
-				`
-					INSERT INTO crawl_artifacts (
-						id,
-						crawl_run_id,
-						source_id,
-						artifact_type,
-						storage_key,
-						content_hash,
-						http_status,
-						content_type,
-						final_url,
-						response_metadata_json,
-						fetched_at,
-						size_bytes,
-						created_at
-					)
-					VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-				`
-			)
-			.bind(
-				artifactId,
-				input.crawlRunId,
-				input.sourceId,
-				input.artifactType,
-				storageKey,
-				contentHash,
-				input.httpStatus ?? null,
-				contentType,
-				finalUrl,
-				JSON.stringify(responseMetadata),
-				fetchedAt,
-				sizeBytes,
-				createdAt
-			)
-			.run();
-
-		if (input.markAsPrimaryForRun) {
-			await db
-				.prepare(
-					`
-						UPDATE crawl_runs
-						SET
-							artifact_key = ?,
-							content_hash = ?
-						WHERE id = ?
-					`
-				)
-				.bind(storageKey, contentHash, input.crawlRunId)
-				.run();
-		}
+		await insertCrawlArtifactMetadata({
+			artifactId,
+			crawlRunId: input.crawlRunId,
+			sourceId: input.sourceId,
+			artifactType: input.artifactType,
+			storageKey,
+			contentHash,
+			httpStatus: input.httpStatus ?? null,
+			contentType,
+			finalUrl,
+			responseMetadata,
+			fetchedAt,
+			sizeBytes,
+			createdAt,
+			markAsPrimaryForRun: input.markAsPrimaryForRun,
+		});
 
 		await logCrawlEvent({
 			runId: input.crawlRunId,
@@ -392,24 +450,101 @@ export async function getCrawlArtifactBody(storageKey: string): Promise<ArrayBuf
 	return object.arrayBuffer();
 }
 
+async function recordCrawlArtifactMetadataOnly(
+	input: PersistFetchedArtifactInput,
+	artifactType: CrawlArtifactType
+): Promise<CrawlArtifactRecord> {
+	const artifactId = crypto.randomUUID();
+	const createdAt = nowIso();
+	const finalUrl = normalizeSourceUrl(input.finalUrl);
+	const bytes = input.body;
+	const sizeBytes = bytes.byteLength;
+	const contentHash = await sha256Hex(bytes);
+	const contentType = input.contentType?.trim() || defaultContentType(artifactType);
+	const storageKey = buildMetadataOnlyArtifactStorageKey({
+		sourceId: input.sourceId,
+		crawlRunId: input.crawlRunId,
+		artifactId,
+		artifactType,
+		fetchedAt: input.fetchedAt,
+	});
+	const responseMetadata = {
+		...input.responseMetadata,
+		storageMode: "metadata_only",
+		storageReason: "binding_unavailable",
+	};
+
+	await insertCrawlArtifactMetadata({
+		artifactId,
+		crawlRunId: input.crawlRunId,
+		sourceId: input.sourceId,
+		artifactType,
+		storageKey,
+		contentHash,
+		httpStatus: input.httpStatus,
+		contentType,
+		finalUrl,
+		responseMetadata,
+		fetchedAt: input.fetchedAt,
+		sizeBytes,
+		createdAt,
+		markAsPrimaryForRun: false,
+	});
+
+	await logCrawlEvent({
+		runId: input.crawlRunId,
+		sourceId: input.sourceId,
+		level: "warn",
+		eventType: "artifact_metadata_recorded_without_storage",
+		message: "Recorded artifact metadata without R2 storage because CRAWL_ARTIFACTS is unavailable",
+		metadata: {
+			artifactId,
+			artifactType,
+			storageKey,
+			contentHash,
+			httpStatus: input.httpStatus,
+			sizeBytes,
+			finalUrl,
+		},
+	});
+
+	return {
+		id: artifactId,
+		crawlRunId: input.crawlRunId,
+		sourceId: input.sourceId,
+		artifactType,
+		storageKey,
+		contentHash,
+		httpStatus: input.httpStatus,
+		contentType,
+		finalUrl,
+		responseMetadata,
+		fetchedAt: input.fetchedAt,
+		sizeBytes,
+		createdAt,
+	};
+}
+
 export function createDefaultCrawlArtifactPersister(): CrawlArtifactPersister {
 	return {
 		async persistFetchedArtifact(
 			input: PersistFetchedArtifactInput
 		): Promise<PersistFetchedArtifactResult> {
-			const bucket = await maybeGetCrawlArtifactsBucket();
-			if (!bucket) {
-				return {
-					status: "skipped",
-					reason: "binding_unavailable",
-				};
-			}
-
 			const artifactType = inferArtifactTypeFromContentType(input.contentType);
 			if (!artifactType) {
 				return {
 					status: "skipped",
 					reason: "unsupported_content_type",
+				};
+			}
+
+			const bucket = await maybeGetCrawlArtifactsBucket();
+			if (!bucket) {
+				const artifact = await recordCrawlArtifactMetadataOnly(input, artifactType);
+				return {
+					status: "metadata_only",
+					artifact,
+					reason: "binding_unavailable",
 				};
 			}
 

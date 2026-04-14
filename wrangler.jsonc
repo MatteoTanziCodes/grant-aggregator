@@ -9,6 +9,9 @@
 	"main": ".open-next/worker.js",
 	"compatibility_date": "2025-12-01",
 	"compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+	"triggers": {
+		"crons": ["0 13 1 * *"]
+	},
 	"d1_databases": [
 		{
 			"binding": "FUNDING_DB",
@@ -28,6 +31,7 @@
 	// 	"EMAIL_FROM": "Grant Aggregator <updates@matteo-tanzi.dev>",
 	// 	"EMAIL_VERIFICATION_BASE_URL": "https://your-domain.com",
 	// 	"UNSUBSCRIBE_SECRET": "replace-with-a-long-random-secret"
+	// 	"MONTHLY_JOB_SECRET": "set-via-wrangler-secret-put-monthly_job_secret"
 	// 	"ADMIN_BASIC_AUTH_USERNAME": "admin-username",
 	// 	"ADMIN_BASIC_AUTH_PASSWORD": "replace-with-a-strong-password",
 	// 	"ADMIN_TOTP_SECRET": "base32-secret-for-authenticator-app",

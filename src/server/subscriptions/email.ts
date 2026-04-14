@@ -18,6 +18,23 @@ type AdminTestEmailArgs = {
 	adminUsername: string;
 };
 
+type MonthlyDigestEmailArgs = {
+	email: string;
+	reportMonthLabel: string;
+	reportTitle: string;
+	reportUrl: string;
+	unsubscribeUrl: string;
+	opportunityCount: number;
+	sourceCount: number;
+	highlights: Array<{
+		title: string;
+		organizationName: string;
+		amountText: string | null;
+		deadlineText: string | null;
+		programUrl: string;
+	}>;
+};
+
 export type DeliveryResult = {
 	providerName: string;
 	providerMessageId?: string;
@@ -112,6 +129,73 @@ function adminTestHtml(args: AdminTestEmailArgs): string {
 	`;
 }
 
+function monthlyDigestText(args: MonthlyDigestEmailArgs): string {
+	const highlightLines =
+		args.highlights.length === 0
+			? ["No opportunity highlights were available for this digest."]
+			: args.highlights.map((item, index) =>
+					[
+						`${index + 1}. ${item.title} — ${item.organizationName}`,
+						`   ${item.amountText ?? "Amount varies"} · ${item.deadlineText ?? "Deadline not specified"}`,
+						`   ${item.programUrl}`,
+					].join("\n")
+			  );
+
+	return [
+		args.reportTitle,
+		"",
+		`${args.sourceCount} sources contributed ${args.opportunityCount} opportunities in the ${args.reportMonthLabel} monthly digest.`,
+		"",
+		...highlightLines,
+		"",
+		`Open the full report: ${args.reportUrl}`,
+		`Unsubscribe: ${args.unsubscribeUrl}`,
+	].join("\n");
+}
+
+function monthlyDigestHtml(args: MonthlyDigestEmailArgs): string {
+	const highlightMarkup =
+		args.highlights.length === 0
+			? "<p style=\"margin:0;color:#7b5e64;\">No opportunity highlights were available for this digest.</p>"
+			: args.highlights
+					.map(
+						(item) => `
+							<li style="margin:0 0 18px 0;">
+								<p style="margin:0;font-weight:600;color:#4b1e25;">${item.title}</p>
+								<p style="margin:6px 0 0 0;color:#7b5e64;">${item.organizationName}</p>
+								<p style="margin:6px 0 0 0;color:#4b1e25;">${item.amountText ?? "Amount varies"} · ${item.deadlineText ?? "Deadline not specified"}</p>
+								<p style="margin:8px 0 0 0;">
+									<a href="${item.programUrl}" style="color:#8b2332;">Open program</a>
+								</p>
+							</li>
+						`
+					)
+					.join("");
+
+	return `
+		<div style="font-family: Arial, sans-serif; line-height: 1.6; color: #4b1e25;">
+			<h1 style="font-size: 22px; margin-bottom: 12px;">${args.reportTitle}</h1>
+			<p>${args.sourceCount} sources contributed <strong>${args.opportunityCount}</strong> opportunities in the ${args.reportMonthLabel} digest.</p>
+			<p style="margin: 24px 0;">
+				<a
+					href="${args.reportUrl}"
+					style="background:#8b2332;color:#fff;padding:12px 18px;border-radius:6px;text-decoration:none;font-weight:600;"
+				>
+					Open monthly report
+				</a>
+			</p>
+			<h2 style="font-size: 16px; margin: 28px 0 12px 0;">Highlights</h2>
+			<ol style="padding-left: 20px; margin: 0;">
+				${highlightMarkup}
+			</ol>
+			<p style="font-size: 12px; color: #7b5e64; margin-top: 28px;">
+				If you no longer want funding updates, you can
+				<a href="${args.unsubscribeUrl}" style="color: #8b2332;"> unsubscribe here</a>.
+			</p>
+		</div>
+	`;
+}
+
 async function sendEmail(args: BaseEmailArgs): Promise<DeliveryResult> {
 	const env = await getCloudflareEnv();
 	const resendApiKey = env.RESEND_API_KEY ?? process.env.RESEND_API_KEY;
@@ -199,5 +283,16 @@ export async function sendAdminTestEmail(args: AdminTestEmailArgs): Promise<Deli
 		subject: "Grant Aggregator admin test email",
 		text: adminTestText(args),
 		html: adminTestHtml(args),
+	});
+}
+
+export async function sendMonthlyDigestEmail(
+	args: MonthlyDigestEmailArgs
+): Promise<DeliveryResult> {
+	return sendEmail({
+		to: args.email,
+		subject: args.reportTitle,
+		text: monthlyDigestText(args),
+		html: monthlyDigestHtml(args),
 	});
 }
