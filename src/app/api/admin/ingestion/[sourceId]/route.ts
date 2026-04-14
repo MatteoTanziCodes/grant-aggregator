@@ -4,40 +4,49 @@ import { logAdminAudit } from "@/server/admin/audit";
 import { adminErrorResponse } from "@/server/admin/http";
 import {
 	getAdminIngestionSnapshot,
+	parseAdminIngestionSourceId,
 	runAdminIngestion,
 } from "@/server/admin/ingestion-repository";
 
-const SOURCE_ID = "grantcompass-directory" as const;
-
-export async function GET() {
+export async function GET(
+	_request: Request,
+	context: { params: Promise<{ sourceId: string }> }
+) {
 	try {
 		await requireAdminApiSession();
-		const snapshot = await getAdminIngestionSnapshot(SOURCE_ID);
+		const { sourceId: rawSourceId } = await context.params;
+		const sourceId = parseAdminIngestionSourceId(rawSourceId);
+		const snapshot = await getAdminIngestionSnapshot(sourceId);
 		return NextResponse.json(snapshot);
 	} catch (error) {
 		return adminErrorResponse(error);
 	}
 }
 
-export async function POST() {
+export async function POST(
+	_request: Request,
+	context: { params: Promise<{ sourceId: string }> }
+) {
 	try {
 		const session = await requireAdminApiSession();
-		const result = await runAdminIngestion(SOURCE_ID);
+		const { sourceId: rawSourceId } = await context.params;
+		const sourceId = parseAdminIngestionSourceId(rawSourceId);
+		const result = await runAdminIngestion(sourceId);
 
 		await logAdminAudit({
 			adminUsername: session.username,
-			actionType: "grantcompass_ingestion_run",
+			actionType: `${sourceId}_ingestion_run`,
 			metadata: {
 				sourceId: result.source.id,
 				runId: result.run.id,
 				status: result.run.status,
-				artifactStatus: result.artifact.status,
+				artifactStatus: "artifact" in result ? result.artifact.status : "unknown",
 				discoveredCount: result.run.discoveredCount,
 				normalizedCount: result.run.normalizedCount,
 			},
 		});
 
-		const snapshot = await getAdminIngestionSnapshot(SOURCE_ID);
+		const snapshot = await getAdminIngestionSnapshot(sourceId);
 		return NextResponse.json({
 			runId: result.run.id,
 			status: result.run.status,
