@@ -187,13 +187,13 @@ async function issueVerificationForSubscriber(input: {
 	const rawToken = createVerificationToken();
 	const tokenHash = await hashVerificationToken(rawToken);
 	const verificationTokenId = crypto.randomUUID();
-	const verificationUrl = new URL("/api/verify", input.baseUrl);
+	const verificationUrl = new URL("/verify", input.baseUrl);
 	verificationUrl.searchParams.set("token", rawToken);
 	const unsubscribeToken = await createUnsubscribeToken({
 		subscriberId: input.subscriberId,
 		email: input.email,
 	});
-	const unsubscribeUrl = new URL("/api/unsubscribe", input.baseUrl);
+	const unsubscribeUrl = new URL("/unsubscribe", input.baseUrl);
 	unsubscribeUrl.searchParams.set("token", unsubscribeToken);
 
 	await db

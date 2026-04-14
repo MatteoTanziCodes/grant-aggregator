@@ -92,6 +92,12 @@ The production runtime expects these bindings or secrets:
 - `ADMIN_TOTP_SECRET`
 - `ADMIN_SESSION_SECRET`
 
+For Resend production delivery, set `EMAIL_FROM` to an address on a verified domain, for example:
+
+```text
+Grant Aggregator <updates@matteo-tanzi.dev>
+```
+
 The admin panel at `/admin/login` requires username/password plus a 6-digit authenticator code derived from `ADMIN_TOTP_SECRET`.
 
 ## Learn More

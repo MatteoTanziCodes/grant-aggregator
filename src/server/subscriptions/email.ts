@@ -79,6 +79,10 @@ function verificationHtml(args: VerificationEmailArgs): string {
 					Verify email
 				</a>
 			</p>
+			<p style="font-size: 14px; color: #7b5e64;">
+				If the button does not open properly, use this link directly:<br />
+				<a href="${args.verificationUrl}" style="color: #8b2332; word-break: break-all;">${args.verificationUrl}</a>
+			</p>
 			<p style="font-size: 14px; color: #7b5e64;">This link expires in 24 hours.</p>
 			<p style="font-size: 12px; color: #7b5e64; margin-top: 24px;">
 				If you do not want funding update emails, you can
