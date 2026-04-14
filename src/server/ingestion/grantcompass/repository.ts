@@ -109,6 +109,7 @@ type CandidateRow = {
 
 type OpportunityLookupRow = {
 	id: string;
+	discovery_key: string | null;
 };
 
 function nowIso(): string {
@@ -200,13 +201,30 @@ async function findExistingOpportunityByDiscoveryKey(
 	return db
 		.prepare(
 			`
-				SELECT id
+				SELECT id, discovery_key
 				FROM opportunities
 				WHERE origin_source_id = ? AND discovery_key = ?
 				LIMIT 1
 			`
 		)
 		.bind(sourceId, discoveryKey)
+		.first<OpportunityLookupRow>();
+}
+
+async function findExistingOpportunityByProgramUrl(
+	programUrl: string
+): Promise<OpportunityLookupRow | null> {
+	const db = await getFundingDb();
+	return db
+		.prepare(
+			`
+				SELECT id, discovery_key
+				FROM opportunities
+				WHERE program_url = ?
+				LIMIT 1
+			`
+		)
+		.bind(programUrl)
 		.first<OpportunityLookupRow>();
 }
 
@@ -311,9 +329,12 @@ export async function upsertDiscoveryOpportunity(input: {
 	outcome: "created" | "updated";
 }> {
 	const db = await getFundingDb();
-	const existing = await findExistingOpportunityByDiscoveryKey(input.sourceId, input.candidate.externalKey);
+	const existing =
+		(await findExistingOpportunityByDiscoveryKey(input.sourceId, input.candidate.externalKey)) ??
+		(await findExistingOpportunityByProgramUrl(input.candidate.programUrl));
 	const timestamp = nowIso();
 	const opportunityId = existing?.id ?? crypto.randomUUID();
+	const discoveryKey = existing?.discovery_key ?? input.candidate.externalKey;
 
 	if (existing) {
 		await db
@@ -374,7 +395,7 @@ export async function upsertDiscoveryOpportunity(input: {
 				input.candidate.canadianBusinessEligible ? 1 : 0,
 				input.candidate.truthTier,
 				input.candidate.opportunityOrigin,
-				input.candidate.externalKey,
+				discoveryKey,
 				timestamp,
 				opportunityId
 			)

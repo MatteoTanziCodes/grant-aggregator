@@ -86,7 +86,33 @@ export function normalizeEmailAddress(email: string): string {
 }
 
 function isEmailLike(email: string): boolean {
-	return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+	if (!email) {
+		return false;
+	}
+
+	let atIndex = -1;
+
+	for (let index = 0; index < email.length; index += 1) {
+		const character = email[index];
+		if (character.trim() === "") {
+			return false;
+		}
+
+		if (character === "@") {
+			if (atIndex !== -1 || index === 0 || index === email.length - 1) {
+				return false;
+			}
+			atIndex = index;
+		}
+	}
+
+	if (atIndex === -1) {
+		return false;
+	}
+
+	const domain = email.slice(atIndex + 1);
+	const dotIndex = domain.lastIndexOf(".");
+	return dotIndex > 0 && dotIndex < domain.length - 1;
 }
 
 function nowIso(): string {
