@@ -1,7 +1,16 @@
 import handler from "./.open-next/worker.js";
 
 export default {
-  fetch: handler.fetch,
+  async fetch(request: Request, env: CloudflareEnv, ctx: ExecutionContext) {
+    const url = new URL(request.url);
+
+    if (url.hostname === "www.grant-aggregator.matteo-tanzi.dev") {
+      url.hostname = "grant-aggregator.matteo-tanzi.dev";
+      return Response.redirect(url.toString(), 308);
+    }
+
+    return handler.fetch(request, env, ctx);
+  },
 
   async queue(
     batch: MessageBatch<unknown>,
