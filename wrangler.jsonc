@@ -6,7 +6,7 @@
 	"$schema": "node_modules/wrangler/config-schema.json",
 	"name": "grant-aggregator",
 	"account_id": "613ce8a5c9f09c0e869f398b42e790fe",
-	"main": "custom-worker.ts",
+	"main": ".open-next/worker.js",
 	"compatibility_date": "2025-12-01",
 	"compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
 	"d1_databases": [

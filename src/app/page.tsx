@@ -33,15 +33,10 @@ export default function Home() {
 						</div>
 						<p className="mt-8 max-w-2xl text-[1.06rem] leading-8 text-[var(--foreground)]/84">
 							We track only funding opportunities that <strong className="font-semibold text-[var(--foreground)]">directly put money into businesses eligible in Canada</strong>.
-							<span className="mx-2 inline-block rounded-full bg-[var(--accent)]/10 px-3 py-1 font-semibold text-[var(--accent)]">
-								No mentorship-only noise.
-							</span>
-							<span className="mx-2 inline-block rounded-full bg-[var(--accent)]/10 px-3 py-1 font-semibold text-[var(--accent)]">
-								No generic ecosystem pages.
-							</span>
-							<span className="mx-2 inline-block rounded-full bg-[var(--foreground)]/6 px-3 py-1 font-semibold text-[var(--foreground)]">
-								No account required to join.
-							</span>
+							{" "}
+							<strong className="font-semibold text-[var(--accent)]">No mentorship-only noise.</strong>{" "}
+							<strong className="font-semibold text-[var(--accent)]">No generic ecosystem pages.</strong>{" "}
+							<strong className="font-semibold text-[var(--foreground)]">No account required to join.</strong>
 						</p>
 
 						<div className="mt-10">
