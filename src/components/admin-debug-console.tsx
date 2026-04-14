@@ -481,7 +481,7 @@ export function AdminDebugConsole({
 
 	async function handleLogout() {
 		await fetch("/api/admin/session", { method: "DELETE" });
-		router.replace("/admin/login");
+		router.replace("/admin");
 		router.refresh();
 	}
 

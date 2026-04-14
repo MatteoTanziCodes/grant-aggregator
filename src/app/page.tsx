@@ -32,8 +32,16 @@ export default function Home() {
 							</h1>
 						</div>
 						<p className="mt-8 max-w-2xl text-[1.06rem] leading-8 text-[var(--foreground)]/84">
-							We track only funding opportunities that directly put money into businesses eligible in Canada.
-							No mentorship-only noise. No generic ecosystem pages. No account required to join.
+							We track only funding opportunities that <strong className="font-semibold text-[var(--foreground)]">directly put money into businesses eligible in Canada</strong>.
+							<span className="mx-2 inline-block rounded-full bg-[var(--accent)]/10 px-3 py-1 font-semibold text-[var(--accent)]">
+								No mentorship-only noise.
+							</span>
+							<span className="mx-2 inline-block rounded-full bg-[var(--accent)]/10 px-3 py-1 font-semibold text-[var(--accent)]">
+								No generic ecosystem pages.
+							</span>
+							<span className="mx-2 inline-block rounded-full bg-[var(--foreground)]/6 px-3 py-1 font-semibold text-[var(--foreground)]">
+								No account required to join.
+							</span>
 						</p>
 
 						<div className="mt-10">
@@ -57,25 +65,31 @@ export default function Home() {
 							</div>
 
 							<div className="mt-8 space-y-4">
-								<div className="rounded-[var(--radius-box)] border border-[var(--border)] bg-[var(--surface-card)] p-4">
+								<div className="rounded-[var(--radius-box)] border border-[var(--accent)]/20 bg-[linear-gradient(180deg,rgba(139,35,50,0.08),rgba(255,255,255,0.92))] p-4 shadow-[0_10px_24px_rgba(139,35,50,0.08)]">
 									<p className="font-founders text-[11px] uppercase tracking-[0.28em] text-[var(--accent)]">What&apos;s new</p>
-									<p className="font-founders mt-3 text-[1.1rem] uppercase tracking-[-0.05em] text-[var(--foreground)]">Movement worth acting on</p>
-									<p className="mt-2 text-sm leading-6 text-[var(--muted)]">
-										New programs, deadline changes, amount changes, eligibility shifts, and any update that meaningfully changes whether a founder should apply now.
+									<p className="font-founders mt-3 text-[1.1rem] uppercase tracking-[-0.05em] text-[var(--foreground)]">
+										<span className="text-[var(--accent)]">Movement</span> worth acting on
+									</p>
+									<p className="mt-2 text-sm leading-6 text-[var(--foreground)]/82">
+										<strong className="font-semibold text-[var(--accent)]">New programs</strong>, <strong className="font-semibold">deadline changes</strong>, amount changes, eligibility shifts, and any update that meaningfully changes whether a founder should apply now.
 									</p>
 								</div>
-								<div className="rounded-[var(--radius-box)] border border-[var(--border)] bg-[var(--surface-card)] p-4">
+								<div className="rounded-[var(--radius-box)] border border-[var(--border)] bg-[linear-gradient(180deg,rgba(120,93,63,0.06),rgba(255,255,255,0.94))] p-4 shadow-[0_10px_24px_rgba(120,93,63,0.06)]">
 									<p className="font-founders text-[11px] uppercase tracking-[0.28em] text-[var(--accent)]">Recurring availability</p>
-									<p className="font-founders mt-3 text-[1.1rem] uppercase tracking-[-0.05em] text-[var(--foreground)]">The ongoing base layer</p>
-									<p className="mt-2 text-sm leading-6 text-[var(--muted)]">
-										Recurring, evergreen, and rolling opportunities stay visible with references, so monthly updates cover both fresh movement and the opportunities that remain open.
+									<p className="font-founders mt-3 text-[1.1rem] uppercase tracking-[-0.05em] text-[var(--foreground)]">
+										The <span className="text-[var(--accent)]">ongoing</span> base layer
+									</p>
+									<p className="mt-2 text-sm leading-6 text-[var(--foreground)]/80">
+										<strong className="font-semibold">Recurring, evergreen, and rolling opportunities</strong> stay visible with references, so monthly updates cover both fresh movement and the opportunities that remain open.
 									</p>
 								</div>
-								<div className="rounded-[var(--radius-box)] border border-[var(--border)] bg-[var(--surface-card)] p-4">
+								<div className="rounded-[var(--radius-box)] border border-[var(--foreground)]/10 bg-[linear-gradient(180deg,rgba(75,30,37,0.05),rgba(255,255,255,0.95))] p-4 shadow-[0_10px_24px_rgba(75,30,37,0.05)]">
 									<p className="font-founders text-[11px] uppercase tracking-[0.28em] text-[var(--accent)]">References</p>
-									<p className="font-founders mt-3 text-[1.1rem] uppercase tracking-[-0.05em] text-[var(--foreground)]">Every item points back to source</p>
+									<p className="font-founders mt-3 text-[1.1rem] uppercase tracking-[-0.05em] text-[var(--foreground)]">
+										Every item points back to <span className="text-[var(--accent)]">source</span>
+									</p>
 									<p className="mt-2 text-sm leading-6 text-[var(--foreground)]/80">
-										Official program pages stay canonical. Discovery sources help surface opportunities, but each update is anchored to references you can verify directly.
+										<strong className="font-semibold">Official program pages stay canonical.</strong> Discovery sources help surface opportunities, but each update is anchored to references you can verify directly.
 									</p>
 								</div>
 							</div>

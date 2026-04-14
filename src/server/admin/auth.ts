@@ -248,7 +248,7 @@ export async function requireAdminPageSession(): Promise<AdminSessionPayload> {
 	const session = await readAdminSession();
 
 	if (!session) {
-		redirect("/admin/login");
+		redirect("/admin");
 	}
 
 	return session;
