@@ -6,6 +6,14 @@ import {
 	getFundingCakeLatestAdminSnapshot,
 	runFundingCakeDirectoryCrawl,
 } from "@/server/ingestion/fundingcake/run-directory-crawl";
+import {
+	getGrantPortalLatestAdminSnapshot,
+	runGrantPortalDirectoryCrawl,
+} from "@/server/ingestion/grantportal/run-directory-crawl";
+import {
+	getGrantWatchLatestAdminSnapshot,
+	runGrantWatchDirectoryCrawl,
+} from "@/server/ingestion/grantwatch/run-directory-crawl";
 import { listCrawlEventsForRun } from "@/server/ingestion/crawl-logging";
 import { getRunCandidateSummary } from "@/server/ingestion/grantcompass/repository";
 import { getFundingDb } from "@/server/cloudflare/context";
@@ -15,10 +23,16 @@ import {
 	type IngestionRunAssessmentOutcome,
 } from "@/server/ingestion/run-quality";
 
-export type AdminIngestionSourceId = "grantcompass-directory" | "fundingcake-directory";
+export type AdminIngestionSourceId =
+	| "grantcompass-directory"
+	| "fundingcake-directory"
+	| "grantportal-directory"
+	| "grantwatch-canada-directory";
 export const ADMIN_INGESTION_SOURCE_IDS: AdminIngestionSourceId[] = [
 	"grantcompass-directory",
 	"fundingcake-directory",
+	"grantportal-directory",
+	"grantwatch-canada-directory",
 ];
 
 export type AdminIngestionSnapshot = Awaited<
@@ -64,7 +78,12 @@ type FailedIngestionRunRow = {
 };
 
 function assertSupportedSourceId(sourceId: string): asserts sourceId is AdminIngestionSourceId {
-	if (sourceId !== "grantcompass-directory" && sourceId !== "fundingcake-directory") {
+	if (
+		sourceId !== "grantcompass-directory" &&
+		sourceId !== "fundingcake-directory" &&
+		sourceId !== "grantportal-directory" &&
+		sourceId !== "grantwatch-canada-directory"
+	) {
 		throw new Error(`Unsupported ingestion source: ${sourceId}`);
 	}
 }
@@ -83,6 +102,10 @@ export async function getAdminIngestionSnapshot(
 		}
 		case "fundingcake-directory":
 			return getFundingCakeLatestAdminSnapshot();
+		case "grantportal-directory":
+			return getGrantPortalLatestAdminSnapshot();
+		case "grantwatch-canada-directory":
+			return getGrantWatchLatestAdminSnapshot();
 	}
 }
 
@@ -95,12 +118,18 @@ export async function runAdminIngestion(
 ): Promise<
 	| Awaited<ReturnType<typeof runGrantCompassDiscoverySlice>>
 	| Awaited<ReturnType<typeof runFundingCakeDirectoryCrawl>>
+	| Awaited<ReturnType<typeof runGrantPortalDirectoryCrawl>>
+	| Awaited<ReturnType<typeof runGrantWatchDirectoryCrawl>>
 > {
 	switch (sourceId) {
 		case "grantcompass-directory":
 			return runGrantCompassDiscoverySlice();
 		case "fundingcake-directory":
 			return runFundingCakeDirectoryCrawl();
+		case "grantportal-directory":
+			return runGrantPortalDirectoryCrawl();
+		case "grantwatch-canada-directory":
+			return runGrantWatchDirectoryCrawl();
 	}
 }
 

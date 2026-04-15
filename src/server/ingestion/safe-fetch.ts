@@ -15,6 +15,7 @@ export type SafeFetchResult = {
 	cacheControl: string | null;
 	etag: string | null;
 	lastModified: string | null;
+	setCookieHeaders: string[];
 	body: Uint8Array;
 	responseMetadata: Record<string, unknown>;
 };
@@ -22,6 +23,9 @@ export type SafeFetchResult = {
 type FetchWithGuardsOptions = {
 	url: string;
 	limits: CrawlRunLimits;
+	method?: "GET" | "POST";
+	headers?: Record<string, string>;
+	body?: BodyInit | null;
 };
 
 function nowIso(): string {
@@ -39,6 +43,18 @@ function parseOptionalInteger(value: string | null): number | null {
 
 	const parsed = Number.parseInt(value, 10);
 	return Number.isFinite(parsed) ? parsed : null;
+}
+
+function readSetCookieHeaders(headers: Headers): string[] {
+	const typedHeaders = headers as Headers & {
+		getSetCookie?: () => string[];
+	};
+	if (typeof typedHeaders.getSetCookie === "function") {
+		return typedHeaders.getSetCookie();
+	}
+
+	const setCookie = headers.get("set-cookie");
+	return setCookie ? [setCookie] : [];
 }
 
 async function readBodyWithinLimit(
@@ -96,11 +112,13 @@ export async function fetchWithGuards(options: FetchWithGuardsOptions): Promise<
 	try {
 		for (let redirectCount = 0; redirectCount <= options.limits.maxRedirects; redirectCount += 1) {
 			response = await fetch(currentUrl, {
-				method: "GET",
+				method: options.method ?? "GET",
 				redirect: "manual",
 				headers: {
 					accept: "text/html,application/xhtml+xml,application/xml;q=0.9,text/plain;q=0.8,*/*;q=0.1",
+					...(options.headers ?? {}),
 				},
+				body: options.body ?? null,
 				signal: controller.signal,
 			});
 
@@ -135,6 +153,7 @@ export async function fetchWithGuards(options: FetchWithGuardsOptions): Promise<
 		const durationMs = Date.now() - startedAt;
 		const fetchedAt = nowIso();
 		const contentType = response.headers.get("content-type");
+		const setCookieHeaders = readSetCookieHeaders(response.headers);
 		const responseMetadata = {
 			requestedUrl: requestedTarget.toString(),
 			finalUrl: currentUrl,
@@ -146,6 +165,7 @@ export async function fetchWithGuards(options: FetchWithGuardsOptions): Promise<
 			cacheControl: response.headers.get("cache-control"),
 			etag: response.headers.get("etag"),
 			lastModified: response.headers.get("last-modified"),
+			setCookieHeaders,
 			bytesFetched: body.byteLength,
 			durationMs,
 			fetchedAt,
@@ -165,6 +185,7 @@ export async function fetchWithGuards(options: FetchWithGuardsOptions): Promise<
 			cacheControl: response.headers.get("cache-control"),
 			etag: response.headers.get("etag"),
 			lastModified: response.headers.get("last-modified"),
+			setCookieHeaders,
 			body,
 			responseMetadata,
 		};
