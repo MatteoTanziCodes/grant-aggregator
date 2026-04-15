@@ -4,24 +4,38 @@
  */
 {
 	"$schema": "node_modules/wrangler/config-schema.json",
-	"name": "core",
-	"account_id": "af43b5869a980d4edc6c18f15cd7aa2d",
+	"name": "grant-aggregator",
+	"account_id": "613ce8a5c9f09c0e869f398b42e790fe",
 	"main": ".open-next/worker.js",
 	"compatibility_date": "2025-12-01",
 	"compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
-	// Required for the email-only signup flow and funding schema:
-	// "d1_databases": [
+	"triggers": {
+		"crons": ["0 13 1 * *"]
+	},
+	"d1_databases": [
+		{
+			"binding": "FUNDING_DB",
+			"database_name": "grant-aggregator",
+			"database_id": "3fc46fbd-b63f-4a12-90f5-038744e0f12d"
+		}
+	],
+	// Add before enabling raw crawl artifact storage in production:
+	// "r2_buckets": [
 	// 	{
-	// 		"binding": "FUNDING_DB",
-	// 		"database_name": "grant-aggregator",
-	// 		"database_id": "replace-with-your-d1-database-id"
+	// 		"binding": "CRAWL_ARTIFACTS",
+	// 		"bucket_name": "grant-aggregator-artifacts"
 	// 	}
 	// ],
 	// Optional if you want verification emails delivered through Resend:
 	// "vars": {
-	// 	"EMAIL_FROM": "updates@yourdomain.com",
+	// 	"EMAIL_FROM": "Grant Aggregator <updates@matteo-tanzi.dev>",
 	// 	"EMAIL_VERIFICATION_BASE_URL": "https://your-domain.com",
 	// 	"UNSUBSCRIBE_SECRET": "replace-with-a-long-random-secret"
+	// 	"MONTHLY_JOB_SECRET": "set-via-wrangler-secret-put-monthly_job_secret"
+	// 	"ADMIN_BASIC_AUTH_USERNAME": "admin-username",
+	// 	"ADMIN_BASIC_AUTH_PASSWORD": "replace-with-a-strong-password",
+	// 	"ADMIN_TOTP_SECRET": "base32-secret-for-authenticator-app",
+	// 	"ADMIN_SESSION_SECRET": "replace-with-a-long-random-secret"
 	// },
 	"assets": {
 		"binding": "ASSETS",
@@ -32,12 +46,14 @@
 		// see https://opennext.js.org/cloudflare/howtos/image
 		"binding": "IMAGES"
 	},
-	"services": [
+	"routes": [
 		{
-			// Self-reference service binding, the service name must match the worker name
-			// see https://opennext.js.org/cloudflare/caching
-			"binding": "WORKER_SELF_REFERENCE",
-			"service": "core"
+			"pattern": "grant-aggregator.matteo-tanzi.dev",
+			"custom_domain": true
+		},
+		{
+			"pattern": "www.grant-aggregator.matteo-tanzi.dev",
+			"custom_domain": true
 		}
 	],
 	"observability": {

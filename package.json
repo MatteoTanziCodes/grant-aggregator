@@ -4,21 +4,28 @@
 	"private": true,
 	"scripts": {
 		"dev": "next dev",
-		"build": "next build",
-		"build:next": "next build",
+		"build": "next build --webpack",
+		"build:next": "next build --webpack",
 		"build:cloudflare": "opennextjs-cloudflare build",
 		"start": "next start",
 		"lint": "eslint src --max-warnings=0",
 		"deploy": "opennextjs-cloudflare build && opennextjs-cloudflare deploy",
 		"upload": "opennextjs-cloudflare build && opennextjs-cloudflare upload",
 		"preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
-		"cf-typegen": "wrangler types --env-interface CloudflareEnv ./cloudflare-env.d.ts"
+		"cf-typegen": "wrangler types --env-interface CloudflareEnv ./cloudflare-env.d.ts",
+		"db:local:init": "wrangler d1 execute grant-aggregator --local --file=./migrations/d1/0001_initial.sql && wrangler d1 execute grant-aggregator --local --file=./migrations/d1/0002_email_observability.sql && wrangler d1 execute grant-aggregator --local --file=./migrations/d1/0003_security_hardening.sql && wrangler d1 execute grant-aggregator --local --file=./migrations/d1/0004_ingestion_guardrails.sql && wrangler d1 execute grant-aggregator --local --file=./migrations/d1/0005_raw_artifact_storage.sql && wrangler d1 execute grant-aggregator --local --file=./migrations/d1/0006_grantcompass_discovery_slice.sql && wrangler d1 execute grant-aggregator --local --file=./migrations/d1/0007_opportunity_deadlines.sql && wrangler d1 execute grant-aggregator --local --file=./migrations/d1/0008_monthly_digest_workflow.sql",
+		"db:local:tables": "wrangler d1 execute grant-aggregator --local --command \"SELECT name FROM sqlite_master WHERE type='table' ORDER BY name\"",
+		"db:local:reset": "node -e \"require('fs').rmSync('.wrangler/state',{recursive:true,force:true})\" && npm run db:local:init"
 	},
 	"dependencies": {
-		"@opennextjs/cloudflare": "^1.17.1",
-		"next": "16.2.2",
+		"@formkit/auto-animate": "^0.9.0",
+		"@opennextjs/cloudflare": "^1.17.3",
+		"clsx": "^2.1.1",
+		"next": "^16.2.3",
 		"react": "19.1.5",
-		"react-dom": "19.1.5"
+		"react-dom": "19.1.5",
+		"react-wrap-balancer": "^1.1.1",
+		"tailwind-merge": "^3.5.0"
 	},
 	"devDependencies": {
 		"@eslint/eslintrc": "^3",
@@ -27,7 +34,7 @@
 		"@types/react": "^19.1.5",
 		"@types/react-dom": "^19.1.5",
 		"eslint": "^9",
-		"eslint-config-next": "15.4.6",
+		"eslint-config-next": "^16.2.2",
 		"node-addon-api": "^8.5.0",
 		"node-gyp": "^12.2.0",
 		"tailwindcss": "^4",

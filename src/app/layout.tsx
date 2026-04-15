@@ -1,21 +1,34 @@
 import type { Metadata } from "next";
-import { IBM_Plex_Mono, Space_Grotesk } from "next/font/google";
+import localFont from "next/font/local";
+import { Inter } from "next/font/google";
 import "./globals.css";
 
-const sans = Space_Grotesk({
-	variable: "--font-space-grotesk",
+const inter = Inter({
 	subsets: ["latin"],
+	variable: "--font-inter",
+	display: "swap",
 });
 
-const mono = IBM_Plex_Mono({
-	variable: "--font-ibm-plex-mono",
-	subsets: ["latin"],
-	weight: ["400", "500", "600"],
+const mono = localFont({
+	src: [
+		{
+			path: "../../public/fonts/founders-grotesk-mono-light.woff2",
+			weight: "300",
+			style: "normal",
+		},
+		{
+			path: "../../public/fonts/founders-grotesk-mono-regular.woff2",
+			weight: "400",
+			style: "normal",
+		},
+	],
+	variable: "--font-founders-mono",
+	display: "swap",
 });
 
 export const metadata: Metadata = {
-	title: "Grant Aggregator",
-	description: "Email-first funding intelligence for Canadian businesses.",
+	title: "Canadian Funding Intelligence",
+	description: "Canada-first funding intelligence for Canadian entrepreneurs.",
 };
 
 export default function RootLayout({
@@ -28,7 +41,9 @@ export default function RootLayout({
 			<head>
 				<link rel="icon" href="/favicon.svg" type="image/svg+xml"></link>
 			</head>
-			<body className={`${sans.variable} ${mono.variable} antialiased`}>{children}</body>
+			<body className={`${inter.variable} ${mono.variable} antialiased`}>
+				{children}
+			</body>
 		</html>
 	);
 }

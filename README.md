@@ -51,12 +51,57 @@ npm run deploy
 # or similar package manager command
 ```
 
+## Local D1
+
+Initialize the local D1 database schema used by `next dev`:
+
+```bash
+npm run db:local:init
+```
+
+Inspect the local D1 tables:
+
+```bash
+npm run db:local:tables
+```
+
+Reset the local D1 state and recreate the schema:
+
+```bash
+npm run db:local:reset
+```
+
 For Cloudflare Workers Builds / CI, use:
 
 - Build command: `npm run build:cloudflare`
 - Deploy command: `npm run deploy`
 
 Do not use `next build` followed by `wrangler deploy` directly. The deployed worker entrypoint is generated into `.open-next/worker.js` by the OpenNext Cloudflare build step.
+
+## Runtime Config
+
+The production runtime expects these bindings or secrets:
+
+- `FUNDING_DB`
+- `EMAIL_FROM`
+- `EMAIL_VERIFICATION_BASE_URL`
+- `RESEND_API_KEY`
+- `UNSUBSCRIBE_SECRET`
+- `MONTHLY_JOB_SECRET`
+- `ADMIN_BASIC_AUTH_USERNAME`
+- `ADMIN_BASIC_AUTH_PASSWORD`
+- `ADMIN_TOTP_SECRET`
+- `ADMIN_SESSION_SECRET`
+
+The worker cron is configured in [wrangler.jsonc](/D:/Programming/Projects/grant-aggregator/wrangler.jsonc) to run on the first day of each month at `13:00 UTC` (`0 13 1 * *`), which is `9:00 AM` in Toronto during daylight saving time and `8:00 AM` during standard time.
+
+For Resend production delivery, set `EMAIL_FROM` to an address on a verified domain, for example:
+
+```text
+Grant Aggregator <updates@matteo-tanzi.dev>
+```
+
+The admin panel at `/admin/login` requires username/password plus a 6-digit authenticator code derived from `ADMIN_TOTP_SECRET`.
 
 ## Learn More
 

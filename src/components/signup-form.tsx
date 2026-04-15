@@ -48,8 +48,11 @@ export function SignupForm() {
 	}
 
 	return (
-		<div className="rounded-[1.75rem] border border-stone-200/80 bg-white/95 p-5 shadow-[0_20px_60px_rgba(15,23,42,0.12)] backdrop-blur sm:p-6">
-			<form className="flex flex-col gap-3 sm:flex-row" onSubmit={handleSubmit}>
+		<div className="rounded-[var(--radius-panel)] border border-[var(--border)] bg-[var(--surface-strong)] p-5 shadow-[0_12px_34px_rgba(75,30,37,0.06)] sm:p-6">
+			<p className="font-founders mb-4 text-[11px] uppercase tracking-[0.28em] text-[var(--accent)]">
+				Get verified for monthly funding updates
+			</p>
+			<form className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_17rem]" onSubmit={handleSubmit}>
 				<label className="sr-only" htmlFor="email">
 					Email
 				</label>
@@ -61,24 +64,24 @@ export function SignupForm() {
 					required
 					autoComplete="email"
 					placeholder="founder@company.com"
-					className="min-w-0 flex-1 rounded-full border border-stone-300 bg-stone-50 px-5 py-3 text-base text-stone-900 outline-none transition placeholder:text-stone-400 focus:border-teal-600 focus:bg-white"
+					className="min-w-0 w-full rounded-[var(--radius-box)] border border-[var(--border)] bg-[var(--surface-card)] px-4 py-3 text-base text-[var(--foreground)] outline-none placeholder:text-[var(--muted)] focus:border-[var(--accent)] focus:bg-white"
 				/>
 				<button
 					type="submit"
 					disabled={isSubmitting}
-					className="rounded-full bg-teal-700 px-5 py-3 text-sm font-semibold text-white transition hover:bg-teal-800 disabled:cursor-not-allowed disabled:bg-teal-500"
+					className="font-founders w-full rounded-[var(--radius-box)] bg-[var(--accent)] px-5 py-3 text-xs uppercase tracking-[0.18em] text-white hover:bg-[var(--accent-deep)] disabled:cursor-not-allowed disabled:bg-[color:rgba(139,35,50,0.5)]"
 				>
 					{isSubmitting ? "Sending link..." : "Get verification link"}
 				</button>
 			</form>
-			<p className="mt-3 text-sm leading-6 text-stone-600">
+			<p className="mt-3 text-sm leading-6 text-[var(--muted)]">
 				No account, no password. Verify your email and we will only message you when funding changes are worth acting on.
 			</p>
 			{result?.status === "verification_sent" ? (
-				<div className="mt-4 rounded-2xl border border-teal-200 bg-teal-50 px-4 py-3 text-sm text-teal-950">
+				<div className="mt-4 rounded-[var(--radius-box)] border border-[var(--border)] bg-[var(--surface-soft)] px-4 py-3 text-sm text-[var(--foreground)]">
 					Check your inbox for a verification link.
 					{result.verificationUrl ? (
-						<span className="block pt-2 text-teal-800">
+						<span className="block pt-2 text-[var(--accent)]">
 							Dev preview:{" "}
 							<a className="font-medium underline" href={result.verificationUrl}>
 								open verification link
@@ -88,12 +91,12 @@ export function SignupForm() {
 				</div>
 			) : null}
 			{result?.status === "already_verified" ? (
-				<div className="mt-4 rounded-2xl border border-stone-200 bg-stone-100 px-4 py-3 text-sm text-stone-800">
+				<div className="mt-4 rounded-[var(--radius-box)] border border-[var(--border)] bg-[var(--surface-soft)] px-4 py-3 text-sm text-[var(--foreground)]">
 					This email is already verified and subscribed to funding updates.
 				</div>
 			) : null}
 			{result?.error ? (
-				<div className="mt-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+				<div className="mt-4 rounded-[var(--radius-box)] border border-[var(--danger-border)] bg-[var(--danger-surface)] px-4 py-3 text-sm text-[var(--foreground)]">
 					{result.error}
 				</div>
 			) : null}
