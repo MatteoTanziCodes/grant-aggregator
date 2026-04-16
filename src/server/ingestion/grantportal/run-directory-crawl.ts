@@ -16,6 +16,7 @@ import {
 	parseGrantPortalCsrfToken,
 	parseGrantPortalDetailArtifact,
 	parseGrantPortalSearchResults,
+	parseGrantPortalSearchSlices,
 	type GrantPortalDetailCandidate,
 	type GrantPortalSearchCandidate,
 } from "@/server/ingestion/grantportal/parser";
@@ -43,7 +44,9 @@ import { fetchWithGuards } from "@/server/ingestion/safe-fetch";
 import { assertSafeFetchTarget } from "@/server/ingestion/source-validation";
 
 type GrantPortalRunSummary = {
+	searchSliceCount: number;
 	searchPageCount: number;
+	searchSliceFailureCount: number;
 	detailPageCount: number;
 	validationCount: number;
 	extractedCount: number;
@@ -54,9 +57,9 @@ type GrantPortalRunSummary = {
 
 const GRANTPORTAL_CRAWL_LIMITS: CrawlRunLimits = {
 	...DEFAULT_CRAWL_LIMITS,
-	maxPagesPerRun: 50,
-	maxBytesPerRun: 30_000_000,
-	maxDurationMs: 180_000,
+	maxPagesPerRun: 950,
+	maxBytesPerRun: 120_000_000,
+	maxDurationMs: 900_000,
 };
 
 function nowIso(): string {
@@ -80,6 +83,17 @@ function buildCookieHeader(setCookieHeaders: string[]): string {
 		.map((value) => value.split(";", 1)[0]?.trim() ?? "")
 		.filter(Boolean)
 		.join("; ");
+}
+
+function dedupeStringArray(values: string[]): string[] {
+	return Array.from(new Set(values.filter((value) => value.trim().length > 0)));
+}
+
+function buildSearchRequestBody(csrfToken: string, formData: Record<string, string>): string {
+	return new URLSearchParams({
+		_token: csrfToken,
+		...formData,
+	}).toString();
 }
 
 function mapGrantPortalCategory(
@@ -271,8 +285,8 @@ async function ensureGrantPortalSourceRecord(): Promise<void> {
 			GRANTPORTAL_SOURCE_ID,
 			"GrantPortal",
 			GRANTPORTAL_SOURCE_URL,
-			"grantportal-public-search-html",
-			"Discovery-only aggregator source. Uses GrantPortal's public Canada search flow and retains only records whose embedded official Link resolves to an accessible grant-like page.",
+			"grantportal-filter-slices-html",
+			"Discovery-only aggregator source. Uses GrantPortal's Canada search filters across fund types, organization types, regions, purposes, and amount bands, then retains only records whose embedded official Link resolves to an accessible grant-like page.",
 			timestamp,
 			timestamp
 		)
@@ -312,7 +326,7 @@ export async function runGrantPortalDirectoryCrawl(
 			sourceId: source.id,
 			level: "info",
 			eventType: "crawl_started",
-			message: `Started public search crawl for ${source.name}`,
+			message: `Started filter-slice crawl for ${source.name}`,
 			metadata: {
 				baseUrl: source.baseUrl,
 				crawlStrategy: source.crawlStrategy,
@@ -337,44 +351,126 @@ export async function runGrantPortalDirectoryCrawl(
 			throw new Error(`GrantPortal search page returned HTTP ${initialFetch.status}.`);
 		}
 
-		const csrfToken = parseGrantPortalCsrfToken(decodeArtifactText(initialFetch.body));
+		const searchPageHtml = decodeArtifactText(initialFetch.body);
+		const csrfToken = parseGrantPortalCsrfToken(searchPageHtml);
+		const searchSlices = parseGrantPortalSearchSlices(searchPageHtml);
 		const cookieHeader = buildCookieHeader(initialFetch.setCookieHeaders);
-		const searchBody = new URLSearchParams({
-			_token: csrfToken,
-			text: "",
-			source: "public",
-			country: "ca",
-		}).toString();
-		const resultsFetch = await fetchWithGuards({
-			url: GRANTPORTAL_SEARCH_RESULTS_URL,
-			limits,
-			method: "POST",
-			headers: {
-				"content-type": "application/x-www-form-urlencoded; charset=UTF-8",
-				"x-requested-with": "XMLHttpRequest",
-				referer: source.baseUrl,
-				...(cookieHeader ? { cookie: cookieHeader } : {}),
-			},
-			body: searchBody,
-		});
-		lastFetchUrl = resultsFetch.finalUrl;
-		if (!resultsFetch.ok) {
-			throw new Error(`GrantPortal search results returned HTTP ${resultsFetch.status}.`);
-		}
-
-		let totalBytesFetched = initialFetch.bytesFetched + resultsFetch.bytesFetched;
-		let totalRedirects = initialFetch.redirectChain.length + resultsFetch.redirectChain.length;
-		let totalDurationMs = initialFetch.durationMs + resultsFetch.durationMs;
-		const searchCandidates = parseGrantPortalSearchResults(decodeArtifactText(resultsFetch.body));
+		let totalBytesFetched = initialFetch.bytesFetched;
+		let totalRedirects = initialFetch.redirectChain.length;
+		let totalDurationMs = initialFetch.durationMs;
 		const artifactKey = artifact.status === "stored" ? artifact.artifact.storageKey : null;
 		const contentHash = artifact.status === "stored" ? artifact.artifact.contentHash : null;
+		let searchPageCount = 0;
+		let searchSliceFailureCount = 0;
 		let detailPageCount = 0;
 		let validationCount = 0;
 		let parseFailureCount = 0;
 		let createdCount = 0;
 		let updatedCount = 0;
+		const searchCandidatesByKey = new Map<
+			string,
+			{
+				candidate: GrantPortalSearchCandidate;
+				observedAt: string;
+			}
+		>();
 
-		for (const candidate of searchCandidates) {
+		for (const slice of searchSlices) {
+			try {
+				const resultsFetch = await fetchWithGuards({
+					url: GRANTPORTAL_SEARCH_RESULTS_URL,
+					limits,
+					method: "POST",
+					headers: {
+						"content-type": "application/x-www-form-urlencoded; charset=UTF-8",
+						"x-requested-with": "XMLHttpRequest",
+						referer: source.baseUrl,
+						...(cookieHeader ? { cookie: cookieHeader } : {}),
+					},
+					body: buildSearchRequestBody(csrfToken, slice.formData),
+				});
+				lastFetchUrl = resultsFetch.finalUrl;
+				if (!resultsFetch.ok) {
+					throw new Error(`GrantPortal search results returned HTTP ${resultsFetch.status}.`);
+				}
+
+				totalBytesFetched += resultsFetch.bytesFetched;
+				totalRedirects += resultsFetch.redirectChain.length;
+				totalDurationMs += resultsFetch.durationMs;
+				searchPageCount += 1;
+
+				assertCrawlUsageWithinLimits(
+					{
+						pagesFetched: 1 + searchPageCount,
+						bytesFetched: totalBytesFetched,
+						redirectsFollowed: totalRedirects,
+						durationMs: totalDurationMs,
+						llmCalls: 0,
+					},
+					limits
+				);
+
+				for (const parsedCandidate of parseGrantPortalSearchResults(decodeArtifactText(resultsFetch.body))) {
+					const existing = searchCandidatesByKey.get(parsedCandidate.externalKey);
+					if (!existing) {
+						const searchSliceKeys = [slice.key];
+						searchCandidatesByKey.set(parsedCandidate.externalKey, {
+							candidate: {
+								...parsedCandidate,
+								searchSliceKeys,
+								rawPayload: {
+									...parsedCandidate.rawPayload,
+									searchSliceKeys,
+									searchSliceLabels: [slice.label],
+								},
+							},
+							observedAt: resultsFetch.fetchedAt,
+						});
+						continue;
+					}
+
+					const searchSliceKeys = dedupeStringArray([
+						...existing.candidate.searchSliceKeys,
+						slice.key,
+					]);
+					const rawSearchSliceLabels = Array.isArray(existing.candidate.rawPayload.searchSliceLabels)
+						? existing.candidate.rawPayload.searchSliceLabels.filter(
+								(value): value is string => typeof value === "string"
+							)
+						: [];
+
+					existing.candidate.searchSliceKeys = searchSliceKeys;
+					existing.candidate.summary ||= parsedCandidate.summary;
+					existing.candidate.deadlineText ??= parsedCandidate.deadlineText;
+					existing.candidate.rawPayload = {
+						...existing.candidate.rawPayload,
+						searchSliceKeys,
+						searchSliceLabels: dedupeStringArray([...rawSearchSliceLabels, slice.label]),
+					};
+				}
+			} catch (error) {
+				searchSliceFailureCount += 1;
+				await logCrawlEvent({
+					runId: run.id,
+					sourceId: source.id,
+					level: "warn",
+					eventType: "search_slice_failed",
+					message: `GrantPortal search slice failed: ${slice.label}`,
+					metadata: {
+						sliceKey: slice.key,
+						sliceLabel: slice.label,
+						error: toErrorMessage(error),
+					},
+				});
+			}
+		}
+
+		const searchCandidates = Array.from(searchCandidatesByKey.values());
+		if (searchCandidates.length === 0) {
+			throw new Error("GrantPortal filter slices did not yield any program candidates.");
+		}
+
+		for (const { candidate, observedAt } of searchCandidates) {
 			try {
 				const detailFetch = await fetchWithGuards({ url: candidate.sourceUrl, limits });
 				lastFetchUrl = detailFetch.finalUrl;
@@ -405,7 +501,7 @@ export async function runGrantPortalDirectoryCrawl(
 
 				assertCrawlUsageWithinLimits(
 					{
-						pagesFetched: 2 + detailPageCount + validationCount,
+						pagesFetched: 1 + searchPageCount + detailPageCount + validationCount,
 						bytesFetched: totalBytesFetched,
 						redirectsFollowed: totalRedirects,
 						durationMs: totalDurationMs,
@@ -424,7 +520,7 @@ export async function runGrantPortalDirectoryCrawl(
 					candidate: normalized,
 					artifactKey,
 					contentHash,
-					observedAt: resultsFetch.fetchedAt,
+					observedAt,
 				});
 
 				if (upsertResult.outcome === "created") {
@@ -483,7 +579,9 @@ export async function runGrantPortalDirectoryCrawl(
 		}
 
 		const summary: GrantPortalRunSummary = {
-			searchPageCount: 1,
+			searchSliceCount: searchSlices.length,
+			searchPageCount,
+			searchSliceFailureCount,
 			detailPageCount,
 			validationCount,
 			extractedCount: searchCandidates.length,
@@ -495,7 +593,7 @@ export async function runGrantPortalDirectoryCrawl(
 		await finalizeCrawlRun({
 			runId: run.id,
 			status: "succeeded",
-			fetchedUrl: resultsFetch.finalUrl,
+			fetchedUrl: lastFetchUrl,
 			discoveredCount: summary.extractedCount,
 			normalizedCount: summary.createdCount + summary.updatedCount,
 			errorMessage: null,
@@ -506,7 +604,7 @@ export async function runGrantPortalDirectoryCrawl(
 			sourceId: source.id,
 			level: parseFailureCount > 0 ? "warn" : "info",
 			eventType: "crawl_completed",
-			message: "GrantPortal search crawl completed",
+			message: "GrantPortal filter-slice crawl completed",
 			metadata: summary,
 		});
 
@@ -561,7 +659,7 @@ export async function getGrantPortalLatestAdminSnapshot() {
 			candidateSummary: null,
 			events: [],
 			description:
-				"Bounded public-search crawl of GrantPortal's Canada feed. Only records whose embedded official Link resolves to an accessible grant-like page are retained.",
+				"Bounded GrantPortal Canada crawl across filter slices for public/private fund types, organization types, regions, purposes, and amount bands. Only records whose embedded official Link resolves to an accessible grant-like page are retained.",
 		};
 	}
 
@@ -578,6 +676,6 @@ export async function getGrantPortalLatestAdminSnapshot() {
 		candidateSummary,
 		events,
 		description:
-			"Bounded public-search crawl of GrantPortal's Canada feed. Only records whose embedded official Link resolves to an accessible grant-like page are retained.",
+			"Bounded GrantPortal Canada crawl across filter slices for public/private fund types, organization types, regions, purposes, and amount bands. Only records whose embedded official Link resolves to an accessible grant-like page are retained.",
 	};
 }
